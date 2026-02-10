@@ -1,0 +1,37 @@
+stages:
+  - lint
+  - test
+
+variables:
+  POSTGRES_USER: 'django_educational_demo_application'
+  POSTGRES_PASSWORD: ''
+  POSTGRES_DB: 'test_django_educational_demo_application'
+  POSTGRES_HOST_AUTH_METHOD: trust
+
+precommit:
+  stage: lint
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm
+  variables:
+    PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
+  cache:
+    paths:
+      - ${PRE_COMMIT_HOME}
+  before_script:
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - export PATH="$HOME/.cargo/bin:$PATH"
+    - uv venv
+    - uv pip install -q pre-commit pre-commit-uv
+  script:
+    - uv run pre-commit run --show-diff-on-failure --color=always --all-files
+
+pytest:
+  stage: test
+  image: ghcr.io/astral-sh/uv:python3.13
+  services:
+    - postgres:15
+  variables:
+    DATABASE_URL: pgsql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres/$POSTGRES_DB
+  before_script:
+    - uv sync --locked
+  script:
+    - uv run pytest
