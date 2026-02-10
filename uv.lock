@@ -424,7 +424,7 @@ dependencies = [
     { name = "gunicorn" },
     { name = "hiredis" },
     { name = "pillow" },
-    { name = "psycopg", extra = ["c"] },
+    { name = "psycopg", extra = ["binary"] },
     { name = "python-slugify" },
     { name = "rcssmin" },
     { name = "redis" },
@@ -468,7 +468,7 @@ requires-dist = [
     { name = "gunicorn", specifier = "==25.0.3" },
     { name = "hiredis", specifier = "==3.3.0" },
     { name = "pillow", specifier = "==12.1.0" },
-    { name = "psycopg", extras = ["c"], specifier = "==3.3.2" },
+    { name = "psycopg", extras = ["binary"], specifier = "==3.3.2" },
     { name = "python-slugify", specifier = "==8.0.4" },
     { name = "rcssmin", specifier = "==1.2.2" },
     { name = "redis", specifier = "==7.1.1" },
@@ -1076,9 +1076,6 @@ wheels = [
 binary = [
     { name = "psycopg-binary", marker = "implementation_name != 'pypy'" },
 ]
-c = [
-    { name = "psycopg-c", marker = "implementation_name != 'pypy'" },
-]
 
 [[package]]
 name = "psycopg-binary"
@@ -1097,12 +1094,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/3a/62/a8e0f092f4dbef9a94b032fb71e214cf0a375010692fbe7493a766339e47/psycopg_binary-3.3.2-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:8db9034cde3bcdafc66980f0130813f5c5d19e74b3f2a19fb3cfbc25ad113121", size = 4220070, upload-time = "2025-12-06T17:34:11.392Z" },
     { url = "https://files.pythonhosted.org/packages/09/e6/5fc8d8aff8afa114bb4a94a0341b9309311e8bf3ab32d816032f8b984d4e/psycopg_binary-3.3.2-cp313-cp313-win_amd64.whl", hash = "sha256:df65174c7cf6b05ea273ce955927d3270b3a6e27b0b12762b009ce6082b8d3fc", size = 3540922, upload-time = "2025-12-06T17:34:14.88Z" },
 ]
-
-[[package]]
-name = "psycopg-c"
-version = "3.3.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/48/f5/13c6bf88f6ccadc2930066cc5369cee431fc2c87a1ddb621fc27cfe7d8f3/psycopg_c-3.3.2.tar.gz", hash = "sha256:a65927731d394cc77bbf85d02d0311d7843616a4a627f3e816e94ad3a052ef83", size = 624077, upload-time = "2025-12-06T17:34:55.51Z" }
 
 [[package]]
 name = "ptyprocess"

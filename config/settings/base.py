@@ -1,7 +1,6 @@
 # ruff: noqa: ERA001, E501
 """Base settings to build other settings files upon."""
 
-
 from pathlib import Path
 
 import environ
@@ -96,7 +95,9 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # MIGRATIONS
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#migration-modules
-MIGRATION_MODULES = {"sites": "django_educational_demo_application.contrib.sites.migrations"}
+MIGRATION_MODULES = {
+    "sites": "django_educational_demo_application.contrib.sites.migrations"
+}
 
 # AUTHENTICATION
 # ------------------------------------------------------------------------------
@@ -279,11 +280,17 @@ ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_ADAPTER = "django_educational_demo_application.users.adapters.AccountAdapter"
 # https://docs.allauth.org/en/latest/account/forms.html
-ACCOUNT_FORMS = {"signup": "django_educational_demo_application.users.forms.UserSignupForm"}
+ACCOUNT_FORMS = {
+    "signup": "django_educational_demo_application.users.forms.UserSignupForm"
+}
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
-SOCIALACCOUNT_ADAPTER = "django_educational_demo_application.users.adapters.SocialAccountAdapter"
+SOCIALACCOUNT_ADAPTER = (
+    "django_educational_demo_application.users.adapters.SocialAccountAdapter"
+)
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
-SOCIALACCOUNT_FORMS = {"signup": "django_educational_demo_application.users.forms.UserSocialSignupForm"}
+SOCIALACCOUNT_FORMS = {
+    "signup": "django_educational_demo_application.users.forms.UserSocialSignupForm"
+}
 # django-compressor
 # ------------------------------------------------------------------------------
 # https://django-compressor.readthedocs.io/en/latest/quickstart/#installation
