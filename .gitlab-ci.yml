@@ -18,7 +18,8 @@ precommit:
       - ${PRE_COMMIT_HOME}
   before_script:
     - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - export PATH="$HOME/.cargo/bin:$PATH"
+    - export PATH="$HOME/.local/bin:$PATH"
+    - uv --version
     - uv venv
     - uv pip install -q pre-commit pre-commit-uv
   script:
