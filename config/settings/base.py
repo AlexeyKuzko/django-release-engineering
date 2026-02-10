@@ -96,7 +96,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#migration-modules
 MIGRATION_MODULES = {
-    "sites": "django_educational_demo_application.contrib.sites.migrations"
+    "sites": "django_educational_demo_application.contrib.sites.migrations",
 }
 
 # AUTHENTICATION
@@ -281,7 +281,7 @@ ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 ACCOUNT_ADAPTER = "django_educational_demo_application.users.adapters.AccountAdapter"
 # https://docs.allauth.org/en/latest/account/forms.html
 ACCOUNT_FORMS = {
-    "signup": "django_educational_demo_application.users.forms.UserSignupForm"
+    "signup": "django_educational_demo_application.users.forms.UserSignupForm",
 }
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
 SOCIALACCOUNT_ADAPTER = (
@@ -289,7 +289,7 @@ SOCIALACCOUNT_ADAPTER = (
 )
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
 SOCIALACCOUNT_FORMS = {
-    "signup": "django_educational_demo_application.users.forms.UserSocialSignupForm"
+    "signup": "django_educational_demo_application.users.forms.UserSocialSignupForm",
 }
 # django-compressor
 # ------------------------------------------------------------------------------
