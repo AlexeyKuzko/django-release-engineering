@@ -1,0 +1,35 @@
+stages:
+  - lint
+  - test
+
+variables:
+  POSTGRES_USER: 'demo_for_diploma'
+  POSTGRES_PASSWORD: ''
+  POSTGRES_DB: 'test_demo_for_diploma'
+  POSTGRES_HOST_AUTH_METHOD: trust
+
+precommit:
+  stage: lint
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm
+  variables:
+    PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
+  cache:
+    paths:
+      - ${PRE_COMMIT_HOME}
+  before_script:
+    - uv venv
+    - uv pip install -q pre-commit pre-commit-uv
+  script:
+    - uv run pre-commit run --show-diff-on-failure --color=always --all-files
+
+pytest:
+  stage: test
+  image: ghcr.io/astral-sh/uv:python3.13
+  services:
+    - postgres:15
+  variables:
+    DATABASE_URL: pgsql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres/$POSTGRES_DB
+  before_script:
+    - uv sync --locked
+  script:
+    - uv run pytest
