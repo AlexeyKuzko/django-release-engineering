@@ -17,6 +17,7 @@ precommit:
     paths:
       - ${PRE_COMMIT_HOME}
   before_script:
+    - sudo apt-get update && sudo apt-get install -y build-essential libpq-dev
     - curl -LsSf https://astral.sh/uv/install.sh | sh
     - export PATH="$HOME/.local/bin:$PATH"
     - uv --version
@@ -33,6 +34,7 @@ pytest:
   variables:
     DATABASE_URL: pgsql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres/$POSTGRES_DB
   before_script:
+    - sudo apt-get update && sudo apt-get install -y build-essential libpq-dev
     - uv sync --locked
   script:
     - uv run pytest
