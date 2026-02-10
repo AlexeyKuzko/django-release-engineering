@@ -3,10 +3,10 @@ services:
     image: django_educational_demo_application_local_docs
     container_name: django_educational_demo_application_local_docs
     build:
-      context: .
+      context: rm-django_educational_demo_application
       dockerfile: ./compose/local/docs/Dockerfile
     env_file:
-      - ./.envs/.local/.django
+      - .envs/.local/.django
     volumes:
       - /app/.venv
       - ./docs:/docs:z
