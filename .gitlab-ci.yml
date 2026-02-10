@@ -32,7 +32,7 @@ pytest:
   tags:
     - docker
   stage: test
-  image: ghcr.io/astral-sh/uv:python3.13
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm
   services:
     - postgres:15
   variables:
