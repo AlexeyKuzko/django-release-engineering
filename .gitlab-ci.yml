@@ -54,6 +54,8 @@ deploy:
   before_script:
     - apk add --no-cache openssh
   script:
+    - echo "USER=$VM_USER"
+    - echo "HOST=$VM_HOST"
     - echo "$SSH_PRIVATE_KEY" > id_rsa
     - chmod 600 id_rsa
     - ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST "
