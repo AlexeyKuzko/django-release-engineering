@@ -54,16 +54,14 @@ deploy:
   before_script:
     - apk add --no-cache openssh
   script:
-    - echo "USER=$VM_USER"
-    - echo "HOST=$VM_HOST"
     - echo "$SSH_PRIVATE_KEY" > id_rsa
     - chmod 600 id_rsa
     - ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST "
-        cd ~ &&
-        if [ ! -d app ]; then
-          git clone $CI_REPOSITORY_URL app;
-        fi &&
-        cd app &&
-        git pull &&
-        docker compose -f docker-compose.prod.yml up -d --build
+         cd ~ &&
+         if [ ! -d app ]; then
+         git clone https://${DEPLOY_USER}:${DEPLOY_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git app;
+         fi &&
+         cd app &&
+         git pull https://${DEPLOY_USER}:${DEPLOY_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git &&
+         docker compose -f docker-compose.prod.yml up -d --build
       "
