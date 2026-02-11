@@ -45,6 +45,8 @@ pytest:
     - uv run pytest
 
 deploy:
+  tags:
+    - docker
   stage: deploy
   image: alpine:latest
   only:
