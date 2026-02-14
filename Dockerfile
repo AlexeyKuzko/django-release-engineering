@@ -19,15 +19,15 @@ RUN apt-get update \
 COPY pyproject.toml uv.lock ./
 
 # Устанавливаем uv и зависимости В СИСТЕМНЫЙ Python
-RUN pip install uv \
-    && uv sync --locked
+RUN pip install --no-cache-dir uv \
+    && uv sync --locked --system
 
 # Копируем код проекта
 COPY . .
 
 # Сборка статики
-RUN python manage.py collectstatic --noinput
-RUN python manage.py compress
+RUN python manage.py collectstatic --noinput \
+    && python manage.py compress
 
 # ---- Entrypoint ----
 COPY entrypoint.sh /entrypoint.sh
