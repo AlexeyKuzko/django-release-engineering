@@ -13,7 +13,7 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": ":memory:",
-    }
+    },
 }
 STATIC_URL = base_settings.STATIC_URL
 STATIC_ROOT = base_settings.STATIC_ROOT
