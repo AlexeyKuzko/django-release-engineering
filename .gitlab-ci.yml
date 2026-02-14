@@ -16,8 +16,11 @@ variables:
 linter_check_ruff:
   stage: lint
   image: python:3.13-slim
-  script:
+  before_script:
+    - apt-get update
+    - apt-get install -y git build-essential libpq-dev
     - pip install uv
+  script:
     - uv venv
     - uv sync --locked
     - uv run pre-commit run --all-files
