@@ -1,11 +1,10 @@
 FROM python:3.13-slim
 LABEL authors="Alexey Kuzko"
 
-ENV DJANGO_SETTINGS_MODULE=config.settings.build
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV DJANGO_SETTINGS_MODULE=config.settings.build
+ENV DJANGO_SETTINGS_MODULE=config.settings.base
 ENV DJANGO_DEBUG=False
 
 WORKDIR /app
