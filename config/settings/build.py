@@ -1,5 +1,6 @@
-from . import base as base_settings
 import os
+
+from . import base as base_settings
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "build")
 
