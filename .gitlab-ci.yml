@@ -13,8 +13,6 @@ variables:
 
 # ---------------- LINT ----------------
 linter_check_ruff:
-  tags:
-    - docker
   stage: lint
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
   variables:
@@ -35,8 +33,6 @@ linter_check_ruff:
 
 # ---------------- TEST ----------------
 test_with_pytest:
-  tags:
-    - docker
   stage: test
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
   services:
@@ -51,8 +47,6 @@ test_with_pytest:
 
 # ---------------- BUILD ----------------
 build_with_kaniko:
-  tags:
-    - docker
   stage: build
   image:
     name: gcr.io/kaniko-project/executor:debug
@@ -87,8 +81,7 @@ deploy_with_compose:
   image: alpine:latest
   only:
     - main
-  tags:
-    - docker
+
   needs:
     - build_with_kaniko
 
