@@ -29,7 +29,7 @@ COPY . .
 
 # Сборка статики
 RUN python manage.py collectstatic --noinput \
-    && python manage.py compress
+    && python manage.py compress --force
 
 # ---- Entrypoint ----
 COPY entrypoint.sh /entrypoint.sh
