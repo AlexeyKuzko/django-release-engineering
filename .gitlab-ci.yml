@@ -55,7 +55,7 @@ build:
     - docker
   stage: build
   image:
-    name: gcr.io/kaniko-project/executor:latest
+    name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   variables:
     IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
@@ -70,11 +70,12 @@ build:
           }
         }
       }" > /kaniko/.docker/config.json
-    - /kaniko/executor
-        --context "$CI_PROJECT_DIR"
-        --dockerfile "$CI_PROJECT_DIR/Dockerfile"
-        --destination "$IMAGE_TAG"
-        --destination "$CI_REGISTRY_IMAGE:latest"
+    - >
+      /kaniko/executor
+      --context "$CI_PROJECT_DIR"
+      --dockerfile "$CI_PROJECT_DIR/Dockerfile"
+      --destination "$IMAGE_TAG"
+      --destination "$CI_REGISTRY_IMAGE:latest"
 
 # ---------------- DEPLOY ----------------
 deploy:
