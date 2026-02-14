@@ -103,17 +103,13 @@ deploy_with_compose:
     - echo "$SSH_PRIVATE_KEY" > id_rsa
     - chmod 600 id_rsa
 
-    # 1️⃣ Гарантируем существование директории
-    - ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST "
-        mkdir -p /home/$VM_USER/app
-      "
+    # 1. Гарантируем существование директории
+    - ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST "mkdir -p /home/$VM_USER/app"
 
-    # 2️⃣ Копируем compose (всегда перезаписываем)
-    - rsync -avz -e "ssh -o StrictHostKeyChecking=no -i id_rsa" \
-        docker-compose.prod.yml \
-        $VM_USER@$VM_HOST:/home/$VM_USER/app/
+    # 2. Копируем compose (всегда перезаписываем)
+    - scp -o StrictHostKeyChecking=no -i id_rsa docker-compose.prod.yml $VM_USER@$VM_HOST:/home/$VM_USER/app/
 
-    # 3️⃣ Основной deploy
+    # 3. Основной deploy
     - |
       ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST "
         set -Eeuo pipefail
