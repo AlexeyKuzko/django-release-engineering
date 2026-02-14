@@ -14,16 +14,15 @@ variables:
 # ---------------- LINT ----------------
 linter_check_ruff:
   stage: lint
-  image: ghcr.io/astral-sh/uv:python3.13-bookworm
+  image: python:3.13-slim
   variables:
     PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
   cache:
     paths:
       - ${PRE_COMMIT_HOME}
   before_script:
-    - sudo apt-get update && sudo apt-get install -y build-essential libpq-dev
-    - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - export PATH="$HOME/.local/bin:$PATH"
+    - apt-get update && apt-get install -y build-essential libpq-dev git
+    - pip install -q uv
     - uv --version
     - uv venv
     - uv pip install -q pre-commit pre-commit-uv
