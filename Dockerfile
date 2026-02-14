@@ -8,7 +8,7 @@ ENV DJANGO_DEBUG=False
 
 WORKDIR /app
 
-# Системные зависимости
+# Ставим системные зависимости
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
@@ -18,9 +18,10 @@ RUN apt-get update \
 # Копируем только файлы зависимостей (кэширование слоя)
 COPY pyproject.toml uv.lock ./
 
-# Устанавливаем uv и зависимости В СИСТЕМНЫЙ Python
+# Генерируем requirements.txt из lock-файла
 RUN pip install --no-cache-dir uv \
-    && uv sync --locked --system
+    && uv export --format requirements-txt > requirements.txt \
+    && pip install --no-cache-dir -r requirements.txt
 
 # Копируем код проекта
 COPY . .
