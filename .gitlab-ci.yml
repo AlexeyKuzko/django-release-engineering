@@ -12,7 +12,7 @@ variables:
   POSTGRES_HOST_AUTH_METHOD: trust
 
 # ---------------- LINT ----------------
-precommit:
+linter_check_ruff:
   tags:
     - docker
   stage: lint
@@ -34,7 +34,7 @@ precommit:
     - uv run pre-commit run --show-diff-on-failure --color=always --all-files
 
 # ---------------- TEST ----------------
-pytest:
+test_with_pytest:
   tags:
     - docker
   stage: test
@@ -50,7 +50,7 @@ pytest:
     - uv run pytest
 
 # ---------------- BUILD ----------------
-build:
+build_with_kaniko:
   tags:
     - docker
   stage: build
@@ -80,28 +80,76 @@ build:
       --destination "$CI_REGISTRY_IMAGE:latest"
       --cache=true
 
+
 # ---------------- DEPLOY ----------------
-deploy:
+deploy_with_compose:
   tags:
     - docker
   stage: deploy
+  needs:
+    - build_with_kaniko
   image: alpine:latest
   only:
     - main
+  variables:
+    APP_CONTAINER_NAME: diploma-demo
+    DEPLOY_PATH: /home/$VM_USER/app
   before_script:
-    - apk add --no-cache openssh docker-cli
+    - apk add --no-cache openssh docker-cli docker-cli-compose curl
   script:
     - echo "$SSH_PRIVATE_KEY" > id_rsa
     - chmod 600 id_rsa
-    - ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST "
-        docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY &&
-        docker pull $IMAGE_TAG &&
-        docker stop app-django-1 || true &&
-        docker rm app-django-1 || true &&
-        docker run -d \
-          --name app-django-1 \
-          --env-file /home/$VM_USER/app/.env \
-          -p 80:8000 \
-          --restart always \
-          $IMAGE_TAG
+
+    - |
+      ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST "
+
+        set -euo pipefail
+
+        echo \"$CI_REGISTRY_PASSWORD\" | docker login $CI_REGISTRY \
+          -u \"$CI_REGISTRY_USER\" --password-stdin
+
+        cd $DEPLOY_PATH
+
+        echo \"IMAGE_TAG=$IMAGE_TAG\" > .deploy_env
+        echo \"APP_CONTAINER_NAME=$APP_CONTAINER_NAME\" >> .deploy_env
+
+        if docker ps -a --format '{{.Names}}' | grep -q \"$APP_CONTAINER_NAME\"; then
+          docker inspect $APP_CONTAINER_NAME \
+            --format='{{.Config.Image}}' > .previous_image
+        fi
+
+        docker compose -f docker-compose.prod.yml \
+          --env-file .deploy_env pull
+
+        docker compose -f docker-compose.prod.yml \
+          --env-file .deploy_env up -d --remove-orphans
+
+        echo 'Waiting for healthcheck...'
+        sleep 20
+
+        HEALTH_STATUS=\$(docker inspect \
+          --format='{{.State.Health.Status}}' \
+          $APP_CONTAINER_NAME 2>/dev/null || echo 'unknown')
+
+        if [ \"\$HEALTH_STATUS\" != \"healthy\" ]; then
+          echo 'Healthcheck failed. Rolling back...'
+
+          if [ -f .previous_image ]; then
+            PREV_IMAGE=\$(cat .previous_image)
+
+            echo \"IMAGE_TAG=\$PREV_IMAGE\" > .deploy_env
+            echo \"APP_CONTAINER_NAME=$APP_CONTAINER_NAME\" >> .deploy_env
+
+            docker compose -f docker-compose.prod.yml \
+              --env-file .deploy_env up -d --remove-orphans
+
+            echo 'Rollback completed'
+            exit 1
+          else
+            echo 'No previous image found. Manual intervention required.'
+            exit 1
+          fi
+        fi
+
+        echo 'Deploy successful'
       "
