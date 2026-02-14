@@ -6,24 +6,45 @@ stages:
 
 variables:
   IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  POSTGRES_USER: 'django_educational_demo_application'
+  POSTGRES_PASSWORD: ''
+  POSTGRES_DB: 'test_django_educational_demo_application'
+  POSTGRES_HOST_AUTH_METHOD: trust
 
 # ---------------- LINT ----------------
 precommit:
+  tags:
+    - docker
   stage: lint
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
+  variables:
+    PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
+  cache:
+    paths:
+      - ${PRE_COMMIT_HOME}
+  before_script:
+    - sudo apt-get update && sudo apt-get install -y build-essential libpq-dev
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - export PATH="$HOME/.local/bin:$PATH"
+    - uv --version
+    - uv venv
+    - uv pip install -q pre-commit pre-commit-uv
   script:
     - uv sync --locked
-    - uv run pre-commit run --all-files
+    - uv run pre-commit run --show-diff-on-failure --color=always --all-files
 
 # ---------------- TEST ----------------
 pytest:
+  tags:
+    - docker
   stage: test
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
   services:
     - postgres:15
   variables:
-    DATABASE_URL: pgsql://django:django@postgres/test_db
-  script:
+    DATABASE_URL: pgsql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres/$POSTGRES_DB
+  before_script:
+    - sudo apt-get update && sudo apt-get install -y build-essential libpq-dev
     - uv sync --locked
     - uv run pytest
 
@@ -42,6 +63,8 @@ build:
 
 # ---------------- DEPLOY ----------------
 deploy:
+  tags:
+    - docker
   stage: deploy
   image: alpine:latest
   only:
