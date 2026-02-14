@@ -1,39 +1,172 @@
 # Django Educational Demo Application
 
-This is a demo app to demonstrate DevOps skills
-
-[![Built with Cookiecutter Django](https://img.shields.io/badge/built%20with-Cookiecutter%20Django-ff69b4.svg?logo=cookiecutter)](https://github.com/cookiecutter/cookiecutter-django/)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+This is a demo project that demonstrates the use of Django, Docker, and GitLab CI/CD for a simple web application deployment.
 
 License: MIT
 
-## Deployment
+## Deployment scheme
 
-Moved to [deployment](https://cookiecutter-django.readthedocs.io/en/latest/5-deploying.html).
+- PostgreSQL: `systemd`
+- Django/Gunicorn/Nginx: `docker-compose`
+- Monitoring: `docker-compose`
+- Terraform: только создание VM + network
+- Ansible: конфигурация и деплой
 
-## Settings
+### 1. Общая логика пайплайна
 
-Moved to [settings](https://cookiecutter-django.readthedocs.io/en/latest/1-getting-started/settings.html).
+CI pipeline:
 
-## Basic Commands
+`Build -> Test -> Publish -> Terraform Apply -> Ansible Deploy -> Smoke Test -> (Rollback при ошибке)`
 
-### Setting Up Your Users
+Разделение ответственности:
+- GitLab CI: оркестрация
+- Terraform: создание инфраструктуры
+- Ansible: конфигурация и доставка
+- Docker Compose: запуск сервисов на App VM и Monitoring VM
 
-- To create a **normal user account**, just go to Sign Up and fill out the form. Once you submit it, you'll see a "Verify Your E-mail Address" page. Go to your console to see a simulated email verification message. Copy the link into your browser. Now the user's email should be verified and ready to go.
+### 2. Инфраструктура (Terraform)
 
-- To create a **superuser account**, use this command:
+Создаваемые ресурсы.
 
-      uv run python manage.py createsuperuser
+Сеть:
+- VPC
+- 2 подсети:
+  - `public-subnet` (App VM + Monitoring VM)
+  - `private-subnet` (DB VM)
+- Security Groups:
+  - App: `80`, `443`, `22`
+  - DB: `5432` (только от App)
+  - Monitoring: `3000`, `9090` (ограничить IP)
 
-For convenience, you can keep your normal user logged in on Chrome and your superuser logged in on Firefox (or similar), so that you can see how the site behaves for both kinds of users.
+VM 1 (App VM):
+- Docker
+- Docker Compose
+- Nginx (можно контейнером)
+- Django (container)
+- Gunicorn (container)
 
-### Type checks
+Порты:
+- `80`/`443` наружу
+- `8000` только локально
 
-Running type checks with mypy:
+VM 2 (DB VM):
+- PostgreSQL (`systemd`, не контейнер)
+- Volume для данных
+- Firewall: доступ только с App VM
 
-    uv run mypy django_educational_demo_application
+Почему не контейнер:
+- корректнее для production
+- лучше контроль персистентности
 
-### Test coverage
+VM 3 (Monitoring VM):
+- Docker
+- Prometheus
+- Grafana
+- `node_exporter` на всех VM
+
+### 3. Terraform структура
+
+```text
+infra/
+├── main.tf
+├── variables.tf
+├── outputs.tf
+├── network.tf
+├── app_vm.tf
+├── db_vm.tf
+└── monitoring_vm.tf
+```
+
+State:
+- S3 backend
+
+CI:
+
+```bash
+terraform init
+terraform validate
+terraform plan
+terraform apply -auto-approve
+```
+
+### 4. Ansible структура
+
+```text
+ansible/
+├── inventory.tpl
+├── site.yml
+└── roles/
+    ├── common/
+    ├── app/
+    ├── db/
+    └── monitoring/
+```
+
+Роль `common`:
+- users
+- docker
+- firewall
+- `node_exporter`
+
+Роль `app`:
+- `docker login` в registry
+- pull image
+- template `docker-compose.yml`
+- `docker compose up -d`
+- healthcheck
+
+Роль `db`:
+- install postgres
+- create db
+- create user
+- настроить `pg_hba.conf`
+- restart
+
+Роль `monitoring`:
+- `docker compose` для Prometheus + Grafana
+- provision dashboards
+
+### 5. Docker Compose 
+
+Используется только как runtime-слой
+- не как механизм деплоя
+- Ansible управляет Compose
+
+То есть:
+
+`Ansible -> кладет docker-compose.yml -> docker compose up -d`
+
+
+### 6. Принципиально важные моменты
+
+1. Rollback
+
+Rollback это откат Docker image tag
+
+Ansible:
+
+```text
+previous_tag = stored in file or CI variable
+docker compose down
+docker compose up -d with previous image
+```
+
+2. Smoke test после деплоя
+
+После Ansible:
+
+```bash
+curl http://app/health
+```
+
+Если fail, запускается rollback job.
+
+3. Секреты
+- DB password: GitLab CI variables
+- не хранятся в Terraform
+- передаются через Ansible vars
+
+## Test coverage
 
 To run the tests, check your test coverage, and generate an HTML coverage report:
 
