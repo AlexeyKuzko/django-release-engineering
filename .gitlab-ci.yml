@@ -83,77 +83,92 @@ build_with_kaniko:
 
 # ---------------- DEPLOY ----------------
 deploy_with_compose:
-  tags:
-    - docker
   stage: deploy
-  needs:
-    - build_with_kaniko
   image: alpine:latest
   only:
     - main
+  tags:
+    - docker
+  needs:
+    - build_with_kaniko
+
   variables:
     APP_CONTAINER_NAME: diploma-demo
     DEPLOY_PATH: /home/$VM_USER/app
+
   before_script:
-    - apk add --no-cache openssh docker-cli docker-cli-compose curl
+    - apk add --no-cache openssh docker-cli docker-cli-compose rsync curl
+
   script:
     - echo "$SSH_PRIVATE_KEY" > id_rsa
     - chmod 600 id_rsa
 
+    # 1️⃣ Гарантируем существование директории
+    - ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST "
+        mkdir -p /home/$VM_USER/app
+      "
+
+    # 2️⃣ Копируем compose (всегда перезаписываем)
+    - rsync -avz -e "ssh -o StrictHostKeyChecking=no -i id_rsa" \
+        docker-compose.prod.yml \
+        $VM_USER@$VM_HOST:/home/$VM_USER/app/
+
+    # 3️⃣ Основной deploy
     - |
-      ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST '
+      ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST "
         set -Eeuo pipefail
 
-        DEPLOY_PATH="/home/'"$VM_USER"'/app"
-        APP_CONTAINER_NAME="'"$APP_CONTAINER_NAME"'"
-        IMAGE_TAG="'"$IMAGE_TAG"'"
+        DEPLOY_PATH=/home/$VM_USER/app
+        cd \$DEPLOY_PATH
 
-        mkdir -p "$DEPLOY_PATH"
-        cd "$DEPLOY_PATH"
+        echo \"$CI_REGISTRY_PASSWORD\" | docker login $CI_REGISTRY \
+          -u \"$CI_REGISTRY_USER\" --password-stdin
 
-        echo "'"$CI_REGISTRY_PASSWORD"'" | docker login "'"$CI_REGISTRY"'" \
-          -u "'"$CI_REGISTRY_USER"'" --password-stdin
+        echo \"IMAGE_TAG=$IMAGE_TAG\" > .deploy_env
+        echo \"APP_CONTAINER_NAME=$APP_CONTAINER_NAME\" >> .deploy_env
 
-        if docker ps -a --format "{{.Names}}" | grep -q "^$APP_CONTAINER_NAME$"; then
-          docker inspect "$APP_CONTAINER_NAME" \
-            --format "{{.Config.Image}}" > .previous_image || true
+        # Сохраняем предыдущий образ (если есть)
+        if docker ps -a --format '{{.Names}}' | grep -q '^$APP_CONTAINER_NAME$'; then
+          docker inspect $APP_CONTAINER_NAME \
+            --format='{{.Config.Image}}' > .previous_image || true
         fi
 
-        echo "IMAGE_TAG=$IMAGE_TAG" > .deploy_env
-        echo "APP_CONTAINER_NAME=$APP_CONTAINER_NAME" >> .deploy_env
-
+        # Тянем новый образ
         docker compose -f docker-compose.prod.yml \
           --env-file .deploy_env pull
 
+        # Перезапускаем
         docker compose -f docker-compose.prod.yml \
           --env-file .deploy_env up -d --remove-orphans
 
-        echo "Waiting for healthcheck..."
-        sleep 20
+        # Ждём healthcheck (до 60 сек)
+        echo 'Waiting for healthcheck...'
+        for i in {1..12}; do
+          STATUS=\$(docker inspect \
+            --format='{{.State.Health.Status}}' \
+            $APP_CONTAINER_NAME 2>/dev/null || echo 'unknown')
 
-        HEALTH_STATUS=$(docker inspect \
-          --format "{{.State.Health.Status}}" \
-          "$APP_CONTAINER_NAME" 2>/dev/null || echo "unknown")
-
-        if [ "$HEALTH_STATUS" != "healthy" ]; then
-          echo "Healthcheck failed. Rolling back..."
-
-          if [ -f .previous_image ]; then
-            PREV_IMAGE=$(cat .previous_image)
-
-            echo "IMAGE_TAG=$PREV_IMAGE" > .deploy_env
-            echo "APP_CONTAINER_NAME=$APP_CONTAINER_NAME" >> .deploy_env
-
-            docker compose -f docker-compose.prod.yml \
-              --env-file .deploy_env up -d --remove-orphans
-
-            echo "Rollback completed"
-            exit 1
-          else
-            echo "No previous image found."
-            exit 1
+          if [ \"\$STATUS\" = \"healthy\" ]; then
+            echo 'Container healthy'
+            exit 0
           fi
+
+          sleep 5
+        done
+
+        echo 'Healthcheck failed. Rolling back...'
+
+        if [ -f .previous_image ]; then
+          PREV_IMAGE=\$(cat .previous_image)
+
+          echo \"IMAGE_TAG=\$PREV_IMAGE\" > .deploy_env
+          echo \"APP_CONTAINER_NAME=$APP_CONTAINER_NAME\" >> .deploy_env
+
+          docker compose -f docker-compose.prod.yml \
+            --env-file .deploy_env up -d --remove-orphans
+
+          echo 'Rollback completed'
         fi
 
-        echo "Deploy successful"
-      '
+        exit 1
+      "
