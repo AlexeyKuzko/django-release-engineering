@@ -1,52 +1,47 @@
 stages:
   - lint
   - test
+  - build
   - deploy
 
 variables:
-  POSTGRES_USER: 'django_educational_demo_application'
-  POSTGRES_PASSWORD: ''
-  POSTGRES_DB: 'test_django_educational_demo_application'
-  POSTGRES_HOST_AUTH_METHOD: trust
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
 
+# ---------------- LINT ----------------
 precommit:
-  tags:
-    - docker
   stage: lint
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
-  variables:
-    PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
-  cache:
-    paths:
-      - ${PRE_COMMIT_HOME}
-  before_script:
-    - sudo apt-get update && sudo apt-get install -y build-essential libpq-dev
-    - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - export PATH="$HOME/.local/bin:$PATH"
-    - uv --version
-    - uv venv
-    - uv pip install -q pre-commit pre-commit-uv
   script:
-    - uv run pre-commit run --show-diff-on-failure --color=always --all-files
+    - uv sync --locked
+    - uv run pre-commit run --all-files
 
+# ---------------- TEST ----------------
 pytest:
-  tags:
-    - docker
   stage: test
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
   services:
     - postgres:15
   variables:
-    DATABASE_URL: pgsql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres/$POSTGRES_DB
-  before_script:
-    - sudo apt-get update && sudo apt-get install -y build-essential libpq-dev
-    - uv sync --locked
+    DATABASE_URL: pgsql://django:django@postgres/test_db
   script:
+    - uv sync --locked
     - uv run pytest
 
+# ---------------- BUILD ----------------
+build:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker build -t $IMAGE_TAG .
+    - docker push $IMAGE_TAG
+
+# ---------------- DEPLOY ----------------
 deploy:
-  tags:
-    - docker
   stage: deploy
   image: alpine:latest
   only:
@@ -57,11 +52,13 @@ deploy:
     - echo "$SSH_PRIVATE_KEY" > id_rsa
     - chmod 600 id_rsa
     - ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST "
-         cd ~ &&
-         if [ ! -d app ]; then
-         git clone https://${DEPLOY_USER}:${DEPLOY_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git app;
-         fi &&
-         cd app &&
-         git pull https://${DEPLOY_USER}:${DEPLOY_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git &&
-         docker compose -f docker-compose.prod.yml up -d --build
+        docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY &&
+        docker pull $IMAGE_TAG &&
+        docker stop app-django-1 || true &&
+        docker rm app-django-1 || true &&
+        docker run -d \
+          --name app-django-1 \
+          --env-file /home/$VM_USER/app/.env \
+          -p 80:8000 \
+          $IMAGE_TAG
       "
