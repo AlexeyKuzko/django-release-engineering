@@ -101,22 +101,26 @@ deploy_with_compose:
     - chmod 600 id_rsa
 
     - |
-      ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST "
+      ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST '
+        set -Eeuo pipefail
 
-        set -euo pipefail
+        DEPLOY_PATH="/home/'"$VM_USER"'/app"
+        APP_CONTAINER_NAME="'"$APP_CONTAINER_NAME"'"
+        IMAGE_TAG="'"$IMAGE_TAG"'"
 
-        echo \"$CI_REGISTRY_PASSWORD\" | docker login $CI_REGISTRY \
-          -u \"$CI_REGISTRY_USER\" --password-stdin
+        mkdir -p "$DEPLOY_PATH"
+        cd "$DEPLOY_PATH"
 
-        cd $DEPLOY_PATH
+        echo "'"$CI_REGISTRY_PASSWORD"'" | docker login "'"$CI_REGISTRY"'" \
+          -u "'"$CI_REGISTRY_USER"'" --password-stdin
 
-        echo \"IMAGE_TAG=$IMAGE_TAG\" > .deploy_env
-        echo \"APP_CONTAINER_NAME=$APP_CONTAINER_NAME\" >> .deploy_env
-
-        if docker ps -a --format '{{.Names}}' | grep -q \"$APP_CONTAINER_NAME\"; then
-          docker inspect $APP_CONTAINER_NAME \
-            --format='{{.Config.Image}}' > .previous_image
+        if docker ps -a --format "{{.Names}}" | grep -q "^$APP_CONTAINER_NAME$"; then
+          docker inspect "$APP_CONTAINER_NAME" \
+            --format "{{.Config.Image}}" > .previous_image || true
         fi
+
+        echo "IMAGE_TAG=$IMAGE_TAG" > .deploy_env
+        echo "APP_CONTAINER_NAME=$APP_CONTAINER_NAME" >> .deploy_env
 
         docker compose -f docker-compose.prod.yml \
           --env-file .deploy_env pull
@@ -124,32 +128,32 @@ deploy_with_compose:
         docker compose -f docker-compose.prod.yml \
           --env-file .deploy_env up -d --remove-orphans
 
-        echo 'Waiting for healthcheck...'
+        echo "Waiting for healthcheck..."
         sleep 20
 
-        HEALTH_STATUS=\$(docker inspect \
-          --format='{{.State.Health.Status}}' \
-          $APP_CONTAINER_NAME 2>/dev/null || echo 'unknown')
+        HEALTH_STATUS=$(docker inspect \
+          --format "{{.State.Health.Status}}" \
+          "$APP_CONTAINER_NAME" 2>/dev/null || echo "unknown")
 
-        if [ \"\$HEALTH_STATUS\" != \"healthy\" ]; then
-          echo 'Healthcheck failed. Rolling back...'
+        if [ "$HEALTH_STATUS" != "healthy" ]; then
+          echo "Healthcheck failed. Rolling back..."
 
           if [ -f .previous_image ]; then
-            PREV_IMAGE=\$(cat .previous_image)
+            PREV_IMAGE=$(cat .previous_image)
 
-            echo \"IMAGE_TAG=\$PREV_IMAGE\" > .deploy_env
-            echo \"APP_CONTAINER_NAME=$APP_CONTAINER_NAME\" >> .deploy_env
+            echo "IMAGE_TAG=$PREV_IMAGE" > .deploy_env
+            echo "APP_CONTAINER_NAME=$APP_CONTAINER_NAME" >> .deploy_env
 
             docker compose -f docker-compose.prod.yml \
               --env-file .deploy_env up -d --remove-orphans
 
-            echo 'Rollback completed'
+            echo "Rollback completed"
             exit 1
           else
-            echo 'No previous image found. Manual intervention required.'
+            echo "No previous image found."
             exit 1
           fi
         fi
 
-        echo 'Deploy successful'
-      "
+        echo "Deploy successful"
+      '
