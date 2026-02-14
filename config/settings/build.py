@@ -1,5 +1,7 @@
 import os
+from base import INSTALLED_APPS
 
+INSTALLED_APPS = INSTALLED_APPS
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "build")
 
 DEBUG = False
