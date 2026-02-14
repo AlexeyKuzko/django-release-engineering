@@ -59,6 +59,7 @@ build:
     entrypoint: [""]
   script:
     - mkdir -p /kaniko/.docker
+    - echo "SECRET LENGTH: ${#DJANGO_SECRET_KEY}"
     - |
       echo "{
         \"auths\": {
