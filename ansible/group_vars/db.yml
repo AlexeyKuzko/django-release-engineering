@@ -1,0 +1,3 @@
+db_name: diploma
+db_user: diploma_user
+db_password: "{{ vault_db_password }}"

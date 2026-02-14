@@ -2,33 +2,25 @@ stages:
   - lint
   - test
   - build
+  - publish
+  - terraform
   - deploy
+  - smoke
+  - rollback
 
 variables:
   IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
-  POSTGRES_USER: 'django_educational_demo_application'
-  POSTGRES_PASSWORD: ''
-  POSTGRES_DB: 'test_django_educational_demo_application'
-  POSTGRES_HOST_AUTH_METHOD: trust
+  LATEST_TAG: $CI_REGISTRY_IMAGE:latest
 
 # ---------------- LINT ----------------
 linter_check_ruff:
   stage: lint
   image: python:3.13-slim
-  variables:
-    PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
-  cache:
-    paths:
-      - ${PRE_COMMIT_HOME}
-  before_script:
-    - apt-get update && apt-get install -y build-essential libpq-dev git
-    - pip install -q uv
-    - uv --version
-    - uv venv
-    - uv pip install -q pre-commit pre-commit-uv
   script:
+    - pip install uv
+    - uv venv
     - uv sync --locked
-    - uv run pre-commit run --show-diff-on-failure --color=always --all-files
+    - uv run pre-commit run --all-files
 
 # ---------------- TEST ----------------
 test_with_pytest:
@@ -37,21 +29,19 @@ test_with_pytest:
   services:
     - postgres:15
   variables:
-    DATABASE_URL: pgsql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres/$POSTGRES_DB
-  before_script:
-    - apt-get update && apt-get install -y build-essential libpq-dev
-    - uv sync --locked
+    POSTGRES_USER: test
+    POSTGRES_PASSWORD: test
+    POSTGRES_DB: test_db
   script:
+    - uv sync --locked
     - uv run pytest
 
 # ---------------- BUILD ----------------
-build_with_kaniko:
+build_image:
   stage: build
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
-  variables:
-    DOCKER_CONFIG: /kaniko/.docker/
   script:
     - mkdir -p /kaniko/.docker
     - |
@@ -70,93 +60,83 @@ build_with_kaniko:
       --context "$CI_PROJECT_DIR"
       --dockerfile "$CI_PROJECT_DIR/Dockerfile"
       --destination "$IMAGE_TAG"
-      --destination "$CI_REGISTRY_IMAGE:latest"
       --cache=true
 
-
-# ---------------- DEPLOY ----------------
-deploy_with_compose:
-  stage: deploy
-  image: alpine:latest
+# ---------------- PUBLISH ----------------
+publish_latest:
+  stage: publish
+  image: gcr.io/go-containerregistry/crane:debug
+  needs:
+    - build_image
+  script:
+    - crane auth login $CI_REGISTRY -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
+    - crane tag $IMAGE_TAG latest
   only:
     - main
 
-  needs:
-    - build_with_kaniko
-
-  variables:
-    APP_CONTAINER_NAME: diploma-demo
-    DEPLOY_PATH: /home/$VM_USER/app
-
+# ---------------- TERRAFORM APPLY ----------------
+terraform_apply:
+  stage: terraform
+  image: hashicorp/terraform:1.6
   before_script:
-    - apk add --no-cache openssh docker-cli docker-cli-compose rsync curl
-
+    - cd infra
   script:
-    - echo "$SSH_PRIVATE_KEY" > id_rsa
-    - chmod 600 id_rsa
+    - terraform init
+    - terraform validate
+    - terraform plan -out=tfplan
+    - terraform apply -auto-approve tfplan
+  artifacts:
+    paths:
+      - infra/terraform.tfstate
+  only:
+    - main
 
-    # 1. Гарантируем существование директории
-    - ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST "mkdir -p /home/$VM_USER/app"
+# ---------------- ANSIBLE DEPLOY ----------------
+ansible_deploy:
+  stage: deploy
+  image: python:3.12-slim
+  needs:
+    - terraform_apply
+  before_script:
+    - pip install ansible
+    - cd ansible
+  script:
+    - ansible-playbook site.yml \
+        --extra-vars "image=$IMAGE_TAG \
+                      registry_url=$CI_REGISTRY \
+                      registry_user=$CI_REGISTRY_USER \
+                      registry_password=$CI_REGISTRY_PASSWORD"
+  only:
+    - main
 
-    # 2. Копируем compose (всегда перезаписываем)
-    - scp -o StrictHostKeyChecking=no -i id_rsa docker-compose.prod.yml $VM_USER@$VM_HOST:/home/$VM_USER/app/
+# ---------------- SMOKE TEST ----------------
+smoke_test:
+  stage: smoke
+  image: curlimages/curl:latest
+  needs:
+    - ansible_deploy
+  script:
+    - echo "Running smoke test..."
+    - curl -f http://$APP_PUBLIC_IP/health
+  only:
+    - main
 
-    # 3. Основной deploy
-    - |
-      ssh -o StrictHostKeyChecking=no -i id_rsa $VM_USER@$VM_HOST "
-        set -Eeuo pipefail
-
-        DEPLOY_PATH=/home/$VM_USER/app
-        cd \$DEPLOY_PATH
-
-        echo \"$CI_REGISTRY_PASSWORD\" | docker login $CI_REGISTRY \
-          -u \"$CI_REGISTRY_USER\" --password-stdin
-
-        echo \"IMAGE_TAG=$IMAGE_TAG\" > .deploy_env
-        echo \"APP_CONTAINER_NAME=$APP_CONTAINER_NAME\" >> .deploy_env
-
-        # Сохраняем предыдущий образ (если есть)
-        if docker ps -a --format '{{.Names}}' | grep -q '^$APP_CONTAINER_NAME$'; then
-          docker inspect $APP_CONTAINER_NAME \
-            --format='{{.Config.Image}}' > .previous_image || true
-        fi
-
-        # Тянем новый образ
-        docker compose -f docker-compose.prod.yml \
-          --env-file .deploy_env pull
-
-        # Перезапускаем
-        docker compose -f docker-compose.prod.yml \
-          --env-file .deploy_env up -d --remove-orphans
-
-        # Ждём healthcheck (до 60 сек)
-        echo 'Waiting for healthcheck...'
-        for i in {1..12}; do
-          STATUS=\$(docker inspect \
-            --format='{{.State.Health.Status}}' \
-            $APP_CONTAINER_NAME 2>/dev/null || echo 'unknown')
-
-          if [ \"\$STATUS\" = \"healthy\" ]; then
-            echo 'Container healthy'
-            exit 0
-          fi
-
-          sleep 5
-        done
-
-        echo 'Healthcheck failed. Rolling back...'
-
-        if [ -f .previous_image ]; then
-          PREV_IMAGE=\$(cat .previous_image)
-
-          echo \"IMAGE_TAG=\$PREV_IMAGE\" > .deploy_env
-          echo \"APP_CONTAINER_NAME=$APP_CONTAINER_NAME\" >> .deploy_env
-
-          docker compose -f docker-compose.prod.yml \
-            --env-file .deploy_env up -d --remove-orphans
-
-          echo 'Rollback completed'
-        fi
-
-        exit 1
-      "
+# ---------------- ROLLBACK ----------------
+rollback:
+  stage: rollback
+  image: python:3.12-slim
+  when: on_failure
+  needs:
+    - smoke_test
+  before_script:
+    - pip install ansible
+    - cd ansible
+  script:
+    - echo "Rollback to previous image"
+    - ansible-playbook site.yml \
+        --extra-vars "image=$PREVIOUS_IMAGE \
+                      registry_url=$CI_REGISTRY \
+                      registry_user=$CI_REGISTRY_USER \
+                      registry_password=$CI_REGISTRY_PASSWORD"
+  only:
+    - main

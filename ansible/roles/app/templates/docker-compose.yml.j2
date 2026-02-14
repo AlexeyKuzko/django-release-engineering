@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  web:
+    image: {{ image }}
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+
+- name: Copy docker-compose
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/app/docker-compose.yml
+
+- name: Pull image
+  command: docker pull {{ image }}
+
+- name: Deploy app
+  command: docker compose up -d
+  args:
+    chdir: /opt/app
+
+- name: Wait for app
+  uri:
+    url: http://localhost/health
+    status_code: 200
+  register: health
+  retries: 5
+  delay: 5
+  until: health.status == 200
