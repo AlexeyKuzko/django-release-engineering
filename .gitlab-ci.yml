@@ -11,6 +11,10 @@ stages:
 variables:
   IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
   LATEST_TAG: $CI_REGISTRY_IMAGE:latest
+  POSTGRES_USER: 'django_educational_demo_application'
+  POSTGRES_PASSWORD: ''
+  POSTGRES_DB: 'test_django_educational_demo_application'
+  POSTGRES_HOST_AUTH_METHOD: trust
 
 # Run linters: pre-commit-hooks, django-upgrade, ruff, djLint
 linter_check:
