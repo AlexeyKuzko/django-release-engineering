@@ -126,7 +126,7 @@ ansible/
 - `docker compose` для Prometheus + Grafana
 - provision dashboards
 
-### 5. Docker Compose 
+### 5. Docker Compose
 
 Используется только как runtime-слой
 - не как механизм деплоя
