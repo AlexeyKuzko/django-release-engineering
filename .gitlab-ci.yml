@@ -72,7 +72,9 @@ build_image:
 # Publish to GitLab Container Registry
 publish_latest:
   stage: publish
-  image: gcr.io/go-containerregistry/crane:debug
+  image:
+    name: gcr.io/go-containerregistry/crane:debug
+    entrypoint: [""]
   needs:
     - build_image
   script:
