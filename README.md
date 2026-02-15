@@ -24,6 +24,34 @@ CI pipeline:
 - Ansible: конфигурация и доставка
 - Docker Compose: запуск сервисов на App VM и Monitoring VM
 
+### 1.1 Что происходит на стадии Build (фактически)
+
+Стадия `build` в GitLab CI выполняется job `build_image` и собирает Docker image через **Kaniko**.
+
+Шаги:
+- создается `/kaniko/.docker/config.json` с логином/паролем к `$CI_REGISTRY`
+- запускается `/kaniko/executor` с параметрами:
+  - `--context "$CI_PROJECT_DIR"` (контекст сборки = весь репозиторий)
+  - `--dockerfile "$CI_PROJECT_DIR/Dockerfile"`
+  - `--destination "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"` (переменная `IMAGE_TAG`)
+  - `--cache=true` (кэш слоев)
+- результат: собранный образ **сразу пушится** в GitLab Container Registry с тегом коммита
+
+Что выполняется внутри `Dockerfile` на этапе build image:
+- базовый образ `python:3.13-slim`
+- установка системных пакетов `build-essential` и `libpq-dev`
+- копирование `pyproject.toml` и `uv.lock`
+- установка `uv`, экспорт зависимостей в `requirements.txt`, установка Python-зависимостей
+- копирование исходного кода проекта
+- сборка Django-статики:
+  - `python manage.py collectstatic --noinput`
+  - `python manage.py compress --force`
+- добавление `entrypoint.sh` и установка `ENTRYPOINT`
+
+Важно:
+- тег `latest` выставляется **не** на стадии `build`, а на стадии `publish` (job `publish_latest`, только для `main`)
+- стадия `build` не деплоит приложение, а только производит и публикует image с SHA-тегом
+
 ### 2. Инфраструктура (Terraform)
 
 Создаваемые ресурсы.
