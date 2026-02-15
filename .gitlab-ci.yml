@@ -86,7 +86,9 @@ publish_latest:
 # Create infra with terraform apply
 terraform_apply:
   stage: terraform
-  image: hashicorp/terraform:1.6
+  image:
+    name: hashicorp/terraform:1.6
+    entrypoint: [""]
   before_script:
     - cd infra
   script:
