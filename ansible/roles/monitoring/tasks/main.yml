@@ -1,0 +1,32 @@
+- name: Install monitoring runtime packages
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-compose-plugin
+    update_cache: true
+
+- name: Ensure Docker service is enabled and running
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Ensure monitoring directory exists
+  ansible.builtin.file:
+    path: "{{ monitoring_dir }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+
+- name: Render monitoring docker compose
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ monitoring_dir }}/docker-compose.yml"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Start monitoring stack
+  ansible.builtin.command: docker compose -f {{ monitoring_dir }}/docker-compose.yml up -d --remove-orphans
+  changed_when: true

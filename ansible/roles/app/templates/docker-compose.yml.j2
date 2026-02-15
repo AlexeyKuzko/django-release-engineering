@@ -6,29 +6,31 @@ services:
     restart: always
     env_file:
       - .env
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     depends_on:
       - redis
 
-- name: Copy docker-compose
-  template:
-    src: docker-compose.yml.j2
-    dest: /opt/app/docker-compose.yml
+  redis:
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - redis_data:/data
 
-- name: Pull image
-  command: docker pull {{ image }}
+  caddy:
+    image: caddy:2
+    restart: always
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
 
-- name: Deploy app
-  command: docker compose up -d
-  args:
-    chdir: /opt/app
-
-- name: Wait for app
-  uri:
-    url: http://localhost/health
-    status_code: 200
-  register: health
-  retries: 5
-  delay: 5
-  until: health.status == 200
+volumes:
+  redis_data:
+  caddy_data:
+  caddy_config:

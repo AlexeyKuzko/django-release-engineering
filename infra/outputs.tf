@@ -9,3 +9,11 @@ output "monitoring_public_ip" {
 output "db_private_ip" {
   value = yandex_compute_instance.db.network_interface.0.ip_address
 }
+
+output "app_domain" {
+  value = trimsuffix(var.app_domain, ".")
+}
+
+output "dns_zone_id" {
+  value = try(yandex_dns_zone.app_zone[0].id, null)
+}

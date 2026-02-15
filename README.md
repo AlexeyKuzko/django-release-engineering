@@ -113,16 +113,11 @@ This is a demo project that demonstrates the use of Django, Docker, and GitLab C
 
 ## 6. Текущие ограничения
 
-- `ansible/roles/db/main.yml` расположен вне `tasks/main.yml`, поэтому роль `db` фактически пустая для исполнения ролей Ansible.
-- У роли `monitoring` отсутствует `tasks/main.yml`.
-- `ansible/roles/common/tasks/main.yml` фактически пустой.
-- `ansible/roles/app/templates/docker-compose.yml.j2` содержит YAML задач Ansible, что делает шаблон некорректным и ломает ожидаемую логику роли.
-- `ansible/inventory/hosts.ini` содержит плейсхолдеры `APP_PUBLIC_IP` и `MONITORING_PUBLIC_IP`; автоматической подстановки из `terraform output` в CI нет.
-- В приложении отсутствует endpoint `/health`, при этом он обязателен для `health_check` и для проверки в Ansible.
+- Для `MANAGE_DNS=true` требуется делегирование NS у регистратора на DNS-зону из Yandex Cloud, иначе ACME challenge для TLS не пройдет.
 - Откат зависит от `$PREVIOUS_IMAGE`, механизм получения/хранения которого не реализован.
+- Для production обязательны секреты в CI/CD (`DJANGO_SECRET_KEY`, `DB_PASSWORD`, registry credentials).
+- Рекомендуется вынести чувствительные значения из tracked-файлов `.envs/.production/*` и `.envs/.local/*`.
 - В репозитории отсутствуют CI-уведомления (`notify`), webhooks как часть пайплайна не настроены.
-- В `.envs/.production/*` и `.envs/.local/*` находятся реальные секреты в tracked-файлах; это риск безопасности.
-- Terraform VM используют шаблонные `image_id` вида `fd8...ubuntu-22-04-lts`, что требует замены на валидные ID.
 
 ## 7. Тестирование
 
@@ -144,3 +139,36 @@ uv run python manage.py runserver
 ```
 
 Для production-настроек обязательно задать env-переменные (`DJANGO_SECRET_KEY`, `DJANGO_ADMIN_URL`, `DJANGO_ALLOWED_HOSTS` и др.).
+
+## 9. Автоматизированное развертывание с DNS и TLS (актуально)
+
+В проект добавлен полностью автоматизированный контур `Terraform -> Ansible -> HTTPS health-check`:
+- Terraform создаёт/обновляет инфраструктуру и (опционально) DNS в Yandex Cloud.
+- `terraform_apply` формирует `ansible/inventory/hosts.generated.ini` из `terraform output`.
+- Ansible разворачивает приложение через Docker Compose и reverse-proxy `Caddy`.
+- Caddy автоматически получает/обновляет TLS-сертификат Let's Encrypt для домена.
+- `health_check` проверяет `https://<APP_DOMAIN>/health`.
+
+### Новые переменные Terraform
+
+- `app_domain` - FQDN приложения, например `app.example.com`
+- `manage_dns` - `true/false`, управлять ли DNS-зоной и A-записью через Terraform
+- `dns_zone` - базовая зона, например `example.com`
+- `dns_zone_resource_name` - имя ресурса DNS-зоны в Yandex Cloud
+
+### Важные CI/CD переменные GitLab
+
+- `APP_DOMAIN` - домен приложения
+- `MANAGE_DNS` - `true`/`false`
+- `DNS_ZONE` - зона для DNS
+- `DNS_ZONE_RESOURCE_NAME` - имя зоны в YC DNS
+- `DJANGO_SECRET_KEY` - секрет Django
+- `DJANGO_ADMIN_URL` - URL админки (например `admin/`)
+- `DB_USER`, `DB_PASSWORD`, `DB_NAME` - параметры БД
+- `TLS_ACME_EMAIL` - email для Let's Encrypt
+
+### DNS делегирование
+
+Если `MANAGE_DNS=true`, Terraform создаёт публичную DNS-зону.
+Terraform отдаёт `dns_zone_id` в output; NS-серверы зоны нужно взять в Yandex Cloud DNS UI/API и делегировать домен у регистратора.
+Без делегирования Let's Encrypt не сможет пройти HTTP-01 challenge.

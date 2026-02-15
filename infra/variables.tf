@@ -15,3 +15,27 @@ variable "private_cidr" {
 }
 
 variable "ssh_public_key" {}
+
+variable "app_domain" {
+  description = "FQDN of the app, used by DNS and TLS."
+  type        = string
+  default     = "app.example.com"
+}
+
+variable "manage_dns" {
+  description = "Create/manage DNS zone and A record in Yandex Cloud DNS."
+  type        = bool
+  default     = false
+}
+
+variable "dns_zone" {
+  description = "Base DNS zone, e.g. example.com"
+  type        = string
+  default     = "example.com"
+}
+
+variable "dns_zone_resource_name" {
+  description = "Terraform resource name for Yandex DNS zone."
+  type        = string
+  default     = "diploma-zone"
+}

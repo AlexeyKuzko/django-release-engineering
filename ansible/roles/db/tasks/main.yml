@@ -1,0 +1,79 @@
+- name: Install PostgreSQL
+  ansible.builtin.apt:
+    name:
+      - postgresql
+      - postgresql-contrib
+    state: present
+    update_cache: true
+
+- name: Ensure PostgreSQL is running
+  ansible.builtin.service:
+    name: postgresql
+    state: started
+    enabled: true
+
+- name: Discover postgresql.conf path
+  ansible.builtin.find:
+    paths: /etc/postgresql
+    patterns: postgresql.conf
+    recurse: true
+    file_type: file
+  register: pg_conf_files
+
+- name: Discover pg_hba.conf path
+  ansible.builtin.find:
+    paths: /etc/postgresql
+    patterns: pg_hba.conf
+    recurse: true
+    file_type: file
+  register: pg_hba_files
+
+- name: Allow PostgreSQL to listen on all interfaces
+  ansible.builtin.lineinfile:
+    path: "{{ item.path }}"
+    regexp: "^#?listen_addresses\\s*="
+    line: "listen_addresses = '*'"
+  loop: "{{ pg_conf_files.files }}"
+  register: pg_listen_address
+
+- name: Allow app subnet to connect to PostgreSQL
+  ansible.builtin.lineinfile:
+    path: "{{ item.path }}"
+    line: "host {{ db_name }} {{ db_user }} {{ app_subnet_cidr }} md5"
+    insertafter: EOF
+  loop: "{{ pg_hba_files.files }}"
+  register: pg_hba_access
+
+- name: Restart PostgreSQL when network config changed
+  ansible.builtin.service:
+    name: postgresql
+    state: restarted
+  when: pg_listen_address.changed or pg_hba_access.changed
+
+- name: Ensure DB user exists
+  ansible.builtin.shell: |
+    set -euo pipefail
+    psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='{{ db_user }}'" | grep -q 1 \
+      || psql -c "CREATE USER \"{{ db_user }}\""
+  args:
+    executable: /bin/bash
+  become_user: postgres
+  register: create_user_result
+  changed_when: "'CREATE ROLE' in create_user_result.stdout"
+
+- name: Ensure DB user password is up to date
+  ansible.builtin.command: >
+    psql -c "ALTER USER \"{{ db_user }}\" WITH ENCRYPTED PASSWORD '{{ db_password | replace(\"'\", \"''\") }}';"
+  become_user: postgres
+  changed_when: false
+
+- name: Ensure database exists
+  ansible.builtin.shell: |
+    set -euo pipefail
+    psql -tAc "SELECT 1 FROM pg_database WHERE datname='{{ db_name }}'" | grep -q 1 \
+      || psql -c "CREATE DATABASE \"{{ db_name }}\" OWNER \"{{ db_user }}\""
+  args:
+    executable: /bin/bash
+  become_user: postgres
+  register: create_db_result
+  changed_when: "'CREATE DATABASE' in create_db_result.stdout"

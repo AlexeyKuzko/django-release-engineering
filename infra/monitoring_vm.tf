@@ -9,7 +9,7 @@ resource "yandex_compute_instance" "monitoring" {
 
   boot_disk {
     initialize_params {
-      image_id = "fd8...ubuntu-22-04-lts"
+      image_id = data.yandex_compute_image.ubuntu_2204_lts.id
       size     = 20
     }
   }

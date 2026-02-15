@@ -1,0 +1,8 @@
+{
+  email {{ caddy_acme_email }}
+}
+
+{{ app_domain }} {
+  encode gzip zstd
+  reverse_proxy web:8000
+}

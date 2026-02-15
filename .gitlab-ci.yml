@@ -83,7 +83,7 @@ publish_latest:
   only:
     - main
 
-# Create infra with terraform apply
+# Create infra with terraform apply and prepare inventory from outputs
 terraform_apply:
   stage: terraform
   image:
@@ -94,6 +94,10 @@ terraform_apply:
     TF_VAR_cloud_id: "$CLOUD_ID"
     TF_VAR_folder_id: "$FOLDER_ID"
     TF_VAR_ssh_public_key: "$SSH_PUBLIC_KEY"
+    TF_VAR_app_domain: "${APP_DOMAIN:-app.example.com}"
+    TF_VAR_manage_dns: "${MANAGE_DNS:-false}"
+    TF_VAR_dns_zone: "${DNS_ZONE:-example.com}"
+    TF_VAR_dns_zone_resource_name: "${DNS_ZONE_RESOURCE_NAME:-diploma-zone}"
     AWS_DEFAULT_REGION: "ru-central1"
     AWS_EC2_METADATA_DISABLED: "true"
   before_script:
@@ -105,9 +109,40 @@ terraform_apply:
     - terraform validate
     - terraform plan -out=tfplan
     - terraform apply -auto-approve tfplan
+    - terraform output -json > tf_outputs.json
+    - APP_PUBLIC_IP="$(terraform output -raw app_public_ip)"
+    - MONITORING_PUBLIC_IP="$(terraform output -raw monitoring_public_ip)"
+    - DB_PRIVATE_IP="$(terraform output -raw db_private_ip)"
+    - APP_DOMAIN="$(terraform output -raw app_domain)"
+    - |
+      cat > ../ansible/inventory/hosts.generated.ini <<EOF
+      [app]
+      app-vm ansible_host=${APP_PUBLIC_IP}
+
+      [db]
+      db-vm ansible_host=${DB_PRIVATE_IP} ansible_ssh_common_args='-o ProxyJump=ubuntu@${APP_PUBLIC_IP}'
+
+      [monitoring]
+      monitoring-vm ansible_host=${MONITORING_PUBLIC_IP}
+
+      [all:vars]
+      ansible_python_interpreter=/usr/bin/python3
+      EOF
+    - |
+      cat > ../deploy.env <<EOF
+      APP_PUBLIC_IP=${APP_PUBLIC_IP}
+      MONITORING_PUBLIC_IP=${MONITORING_PUBLIC_IP}
+      DB_PRIVATE_IP=${DB_PRIVATE_IP}
+      APP_DOMAIN=${APP_DOMAIN}
+      EOF
   artifacts:
+    reports:
+      dotenv: deploy.env
     paths:
       - infra/terraform.tfstate
+      - infra/tf_outputs.json
+      - ansible/inventory/hosts.generated.ini
+      - deploy.env
   only:
     - main
 
@@ -116,28 +151,40 @@ ansible_deploy:
   stage: deploy
   image: python:3.12-slim
   needs:
-    - terraform_apply
+    - job: terraform_apply
+      artifacts: true
   before_script:
     - pip install ansible
-    - cd ansible
   script:
-    - ansible-playbook site.yml \
+    - ansible-playbook -i ansible/inventory/hosts.generated.ini ansible/site.yml \
         --extra-vars "image=$IMAGE_TAG \
                       registry_url=$CI_REGISTRY \
                       registry_user=$CI_REGISTRY_USER \
-                      registry_password=$CI_REGISTRY_PASSWORD"
+                      registry_password=$CI_REGISTRY_PASSWORD \
+                      app_domain=$APP_DOMAIN \
+                      app_public_ip=$APP_PUBLIC_IP \
+                      db_host=$DB_PRIVATE_IP \
+                      db_name=${DB_NAME:-diploma} \
+                      db_user=${DB_USER:-diploma_user} \
+                      db_password=${DB_PASSWORD:-change-me-in-ci} \
+                      django_secret_key=${DJANGO_SECRET_KEY:-change-me-in-ci} \
+                      django_admin_url=${DJANGO_ADMIN_URL:-admin/} \
+                      caddy_acme_email=${TLS_ACME_EMAIL:-admin@$APP_DOMAIN} \
+                      app_subnet_cidr=${APP_SUBNET_CIDR:-10.10.1.0/24}"
   only:
     - main
 
-# Perform health check of deployed app
+# Perform health check of deployed app over HTTPS domain
 health_check:
   stage: health_check
   image: curlimages/curl:latest
   needs:
-    - ansible_deploy
+    - job: terraform_apply
+      artifacts: true
+    - job: ansible_deploy
   script:
-    - echo "Running health_check test..."
-    - curl -f http://$APP_PUBLIC_IP/health
+    - echo "Running HTTPS health check for $APP_DOMAIN..."
+    - curl -fsS --retry 30 --retry-delay 10 --retry-all-errors "https://$APP_DOMAIN/health"
   only:
     - main
 
@@ -147,16 +194,32 @@ rollback:
   image: python:3.12-slim
   when: on_failure
   needs:
-    - health_check
+    - job: terraform_apply
+      artifacts: true
+    - job: health_check
   before_script:
     - pip install ansible
-    - cd ansible
   script:
-    - echo "Rollback to previous image"
-    - ansible-playbook site.yml \
+    - |
+      if [ -z "$PREVIOUS_IMAGE" ]; then
+        echo "PREVIOUS_IMAGE is not set, rollback skipped"
+        exit 0
+      fi
+    - echo "Rollback to previous image: $PREVIOUS_IMAGE"
+    - ansible-playbook -i ansible/inventory/hosts.generated.ini ansible/site.yml \
         --extra-vars "image=$PREVIOUS_IMAGE \
                       registry_url=$CI_REGISTRY \
                       registry_user=$CI_REGISTRY_USER \
-                      registry_password=$CI_REGISTRY_PASSWORD"
+                      registry_password=$CI_REGISTRY_PASSWORD \
+                      app_domain=$APP_DOMAIN \
+                      app_public_ip=$APP_PUBLIC_IP \
+                      db_host=$DB_PRIVATE_IP \
+                      db_name=${DB_NAME:-diploma} \
+                      db_user=${DB_USER:-diploma_user} \
+                      db_password=${DB_PASSWORD:-change-me-in-ci} \
+                      django_secret_key=${DJANGO_SECRET_KEY:-change-me-in-ci} \
+                      django_admin_url=${DJANGO_ADMIN_URL:-admin/} \
+                      caddy_acme_email=${TLS_ACME_EMAIL:-admin@$APP_DOMAIN} \
+                      app_subnet_cidr=${APP_SUBNET_CIDR:-10.10.1.0/24}"
   only:
     - main

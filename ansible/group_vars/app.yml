@@ -1,0 +1,15 @@
+app_dir: /opt/app
+app_domain: app.example.com
+app_public_ip: 127.0.0.1
+
+django_settings_module: config.settings.production
+django_secret_key: change-me-in-ci
+django_admin_url: admin/
+
+db_host: 10.10.2.10
+db_port: 5432
+db_name: diploma
+db_user: diploma_user
+db_password: change-me-in-ci
+
+caddy_acme_email: devops@example.com

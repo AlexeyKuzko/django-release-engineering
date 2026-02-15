@@ -1,18 +1,78 @@
-- name: Install Docker
-  apt:
+- name: Install runtime packages
+  ansible.builtin.apt:
     name:
+      - ca-certificates
+      - curl
       - docker.io
       - docker-compose-plugin
-    update_cache: yes
+    update_cache: true
 
-- name: Enable Docker
-  service:
+- name: Ensure Docker service is enabled and running
+  ansible.builtin.service:
     name: docker
     state: started
-    enabled: yes
+    enabled: true
 
-- name: Login to registry
-  community.docker.docker_login:
-    registry_url: "{{ registry_url }}"
-    username: "{{ registry_user }}"
-    password: "{{ registry_password }}"
+- name: Ensure app directory exists
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+
+- name: Login to container registry
+  ansible.builtin.shell: |
+    set -euo pipefail
+    echo "{{ registry_password }}" | docker login "{{ registry_url }}" --username "{{ registry_user }}" --password-stdin
+  args:
+    executable: /bin/bash
+  no_log: true
+  changed_when: false
+  when:
+    - registry_url | length > 0
+    - registry_user | length > 0
+    - registry_password | length > 0
+
+- name: Render app environment file
+  ansible.builtin.template:
+    src: app.env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0600"
+
+- name: Render docker compose
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ app_dir }}/docker-compose.yml"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Render Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: "{{ app_dir }}/Caddyfile"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Pull latest app image
+  ansible.builtin.command: docker compose -f {{ app_dir }}/docker-compose.yml pull web
+  changed_when: false
+
+- name: Start application stack
+  ansible.builtin.command: docker compose -f {{ app_dir }}/docker-compose.yml up -d --remove-orphans
+  changed_when: true
+
+- name: Wait for app health endpoint through reverse proxy
+  ansible.builtin.uri:
+    url: http://127.0.0.1/health
+    headers:
+      Host: "{{ app_domain }}"
+    status_code: 200
+  register: app_health
+  retries: 15
+  delay: 10
+  until: app_health.status == 200
