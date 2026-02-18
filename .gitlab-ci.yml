@@ -105,10 +105,6 @@ terraform_apply:
   variables:
     TF_VAR_cloud_id: "$CLOUD_ID"
     TF_VAR_folder_id: "$FOLDER_ID"
-    TF_VAR_app_domain: "${APP_DOMAIN:-app.example.com}"
-    TF_VAR_manage_dns: "${MANAGE_DNS:-false}"
-    TF_VAR_dns_zone: "${DNS_ZONE:-example.com}"
-    TF_VAR_dns_zone_resource_name: "${DNS_ZONE_RESOURCE_NAME:-diploma-zone}"
     TF_CLI_CONFIG_FILE: "$CI_PROJECT_DIR/infra/terraform.rc"
     AWS_DEFAULT_REGION: "ru-central1"
     AWS_EC2_METADATA_DISABLED: "true"
@@ -154,6 +150,11 @@ terraform_apply:
       else
         export TF_VAR_ssh_public_key="$(printf '%s' "$SSH_PUBLIC_KEY" | base64 -d)"
       fi
+    - |
+      export TF_VAR_app_domain="${APP_DOMAIN:-app.example.com}"
+      export TF_VAR_manage_dns="${MANAGE_DNS:-false}"
+      export TF_VAR_dns_zone="${DNS_ZONE:-example.com}"
+      export TF_VAR_dns_zone_resource_name="${DNS_ZONE_RESOURCE_NAME:-diploma-zone}"
     - export AWS_ACCESS_KEY_ID="${YC_STORAGE_ACCESS_KEY:-$AWS_ACCESS_KEY_ID}"
     - export AWS_SECRET_ACCESS_KEY="${YC_STORAGE_SECRET_KEY:-$AWS_SECRET_ACCESS_KEY}"
     - terraform init -backend-config="access_key=${AWS_ACCESS_KEY_ID}" -backend-config="secret_key=${AWS_SECRET_ACCESS_KEY}"
