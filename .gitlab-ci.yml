@@ -202,6 +202,9 @@ terraform_apply:
 ansible_deploy:
   stage: deploy
   image: python:3.12-slim
+  variables:
+    ANSIBLE_CONFIG: ansible/ansible.cfg
+    ANSIBLE_HOST_KEY_CHECKING: "False"
   needs:
     - job: terraform_apply
       artifacts: true
@@ -246,6 +249,9 @@ health_check:
 rollback:
   stage: rollback
   image: python:3.12-slim
+  variables:
+    ANSIBLE_CONFIG: ansible/ansible.cfg
+    ANSIBLE_HOST_KEY_CHECKING: "False"
   when: on_failure
   needs:
     - job: terraform_apply
