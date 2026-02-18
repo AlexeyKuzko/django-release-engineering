@@ -9,6 +9,12 @@ variable "zone" {
   default = "ru-central1-a"
 }
 
+variable "os_image_family" {
+  description = "Compute image family name for base OS."
+  type        = string
+  default     = "ubuntu-2204-lts"
+}
+
 variable "public_cidr" {
   default = "10.10.1.0/24"
 }
