@@ -1,6 +1,9 @@
-variable "yc_token" {}
 variable "cloud_id" {}
 variable "folder_id" {}
+variable "service_account_key_file" {
+  description = "Path to service account key JSON file."
+  type        = string
+}
 
 variable "zone" {
   default = "ru-central1-a"

@@ -79,7 +79,20 @@ publish_latest:
     - build_image
   script:
     - crane auth login $CI_REGISTRY -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
-    - crane tag $IMAGE_TAG latest
+    - "printf '' > previous.env"
+    - |
+      if crane digest "$LATEST_TAG" >/dev/null 2>&1; then
+        crane tag "$LATEST_TAG" previous
+        echo "PREVIOUS_IMAGE=$CI_REGISTRY_IMAGE:previous" >> previous.env
+      else
+        echo "PREVIOUS_IMAGE=" >> previous.env
+      fi
+    - crane tag "$IMAGE_TAG" latest
+  artifacts:
+    reports:
+      dotenv: previous.env
+    paths:
+      - previous.env
   only:
     - main
 
@@ -90,10 +103,8 @@ terraform_apply:
     name: hashicorp/terraform:1.6
     entrypoint: [""]
   variables:
-    TF_VAR_yc_token: "$YC_TOKEN"
     TF_VAR_cloud_id: "$CLOUD_ID"
     TF_VAR_folder_id: "$FOLDER_ID"
-    TF_VAR_ssh_public_key: "$SSH_PUBLIC_KEY"
     TF_VAR_app_domain: "${APP_DOMAIN:-app.example.com}"
     TF_VAR_manage_dns: "${MANAGE_DNS:-false}"
     TF_VAR_dns_zone: "${DNS_ZONE:-example.com}"
@@ -103,6 +114,33 @@ terraform_apply:
   before_script:
     - cd infra
   script:
+    - |
+      if [ -z "$YC_SERVICE_ACCOUNT_KEY" ]; then
+        echo "YC_SERVICE_ACCOUNT_KEY is not set"
+        exit 1
+      fi
+      if [ -f "$YC_SERVICE_ACCOUNT_KEY" ]; then
+        export TF_VAR_service_account_key_file="$YC_SERVICE_ACCOUNT_KEY"
+      else
+        export TF_VAR_service_account_key_file="/tmp/yc-sa-key.json"
+        first_char="$(printf '%s' "$YC_SERVICE_ACCOUNT_KEY" | head -c 1)"
+        if [ "$first_char" = "{" ]; then
+          printf '%s' "$YC_SERVICE_ACCOUNT_KEY" > "$TF_VAR_service_account_key_file"
+        else
+          printf '%s' "$YC_SERVICE_ACCOUNT_KEY" | base64 -d > "$TF_VAR_service_account_key_file"
+        fi
+        chmod 600 "$TF_VAR_service_account_key_file"
+      fi
+    - |
+      if [ -z "$SSH_PUBLIC_KEY" ]; then
+        echo "SSH_PUBLIC_KEY is not set"
+        exit 1
+      fi
+      if printf '%s' "$SSH_PUBLIC_KEY" | grep -qE '^(ssh-|ecdsa-|sk-).* '; then
+        export TF_VAR_ssh_public_key="$SSH_PUBLIC_KEY"
+      else
+        export TF_VAR_ssh_public_key="$(printf '%s' "$SSH_PUBLIC_KEY" | base64 -d)"
+      fi
     - export AWS_ACCESS_KEY_ID="${YC_STORAGE_ACCESS_KEY:-$AWS_ACCESS_KEY_ID}"
     - export AWS_SECRET_ACCESS_KEY="${YC_STORAGE_SECRET_KEY:-$AWS_SECRET_ACCESS_KEY}"
     - terraform init -backend-config="access_key=${AWS_ACCESS_KEY_ID}" -backend-config="secret_key=${AWS_SECRET_ACCESS_KEY}"
@@ -196,7 +234,8 @@ rollback:
   needs:
     - job: terraform_apply
       artifacts: true
-    - job: health_check
+    - job: publish_latest
+      artifacts: true
   before_script:
     - pip install ansible
   script:
@@ -205,7 +244,7 @@ rollback:
         echo "PREVIOUS_IMAGE is not set, rollback skipped"
         exit 0
       fi
-    - echo "Rollback to previous image: $PREVIOUS_IMAGE"
+    - 'echo "Rollback to previous image: $PREVIOUS_IMAGE"'
     - ansible-playbook -i ansible/inventory/hosts.generated.ini ansible/site.yml \
         --extra-vars "image=$PREVIOUS_IMAGE \
                       registry_url=$CI_REGISTRY \

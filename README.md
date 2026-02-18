@@ -60,42 +60,35 @@ This is a demo project that demonstrates the use of Django, Docker, and GitLab C
 | `lint` | `linter_check` | При каждом push в репозиторий                                | Образ `python:3.13-slim`; установка `git`, `build-essential`, `libpq-dev`, `uv`; `uv venv`; `uv sync --locked`; `uv run pre-commit run --show-diff-on-failure --color=always --all-files` | Проверка качества кода, при ошибке пайплайн останавливается |
 | `test` | `test_pytest` | После `lint`                                                 | Образ `ghcr.io/astral-sh/uv:python3.13-bookworm`; сервис `postgres:15`; настройка `DATABASE_URL`; установка `build-essential`, `libpq-dev`; `uv sync --locked`; `uv run pytest` | Проверка корректности тестами, при падении тестов дальнейшие стадии не запускаются |
 | `build` | `build_image` | После `test`                                                 | Сборка через Kaniko: создание `/kaniko/.docker/config.json`; запуск `/kaniko/executor` с `--context "$CI_PROJECT_DIR"`, `--dockerfile "$CI_PROJECT_DIR/Dockerfile"`, `--destination "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"` (`IMAGE_TAG`), `--cache=true` | Docker-образ собирается и сразу пушится в GitLab Container Registry с тегом коммита |
-| `publish` | `publish_latest` | Только `main`, после `build_image` (`needs`)                 | Образ `gcr.io/go-containerregistry/crane:debug`; `crane auth login` в `$CI_REGISTRY`; `crane tag $IMAGE_TAG latest` | Образ с тегом коммита получает тег `latest` |
+| `publish` | `publish_latest` | Только `main`, после `build_image` (`needs`)                 | Образ `gcr.io/go-containerregistry/crane:debug`; `crane auth login` в `$CI_REGISTRY`; если `latest` существует — `crane tag $LATEST_TAG previous`, затем `crane tag $IMAGE_TAG latest` | Образ с тегом коммита получает `latest`, предыдущий `latest` сохраняется в теге `previous` |
 | `terraform` | `terraform_apply` | Только `main`                                                | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init`; `terraform validate`; `terraform plan -out=tfplan`; `terraform apply -auto-approve tfplan`; сохранение артефакта `infra/terraform.tfstate` | Инфраструктура создается или обновляется по Terraform |
 | `deploy` | `ansible_deploy` | Только `main`, после `terraform_apply` (`needs`)             | Образ `python:3.12-slim`; `pip install ansible`; переход в `ansible`; `ansible-playbook site.yml` с `--extra-vars`: `image=$IMAGE_TAG`, `registry_url=$CI_REGISTRY`, `registry_user=$CI_REGISTRY_USER`, `registry_password=$CI_REGISTRY_PASSWORD` | Попытка развернуть приложение и сопутствующие сервисы на подготовленной инфраструктуре |
-| `health_check` | `health_check` | Только `main`, после `ansible_deploy` (`needs`)              | Образ `curlimages/curl:latest`; вывод `Running health_check test...`; проверка `curl -f http://$APP_PUBLIC_IP/health` | Подтверждение доступности приложения, при неуспехе стадия падает |
-| `rollback` | `rollback` | Только `main`, `when: on_failure` (после провала предыдущих стадий) | Образ `python:3.12-slim`; установка `ansible`; переход в `ansible`; запуск `ansible-playbook site.yml` с `image=$PREVIOUS_IMAGE` и параметрами `registry_url`, `registry_user`, `registry_password` | Попытка отката на предыдущий стабильный образ |
+| `health_check` | `health_check` | Только `main`, после `ansible_deploy` (`needs`)              | Образ `curlimages/curl:latest`; вывод `Running health_check test...`; проверка `curl -f https://$APP_DOMAIN/health` | Подтверждение доступности приложения по HTTPS-домену, при неуспехе стадия падает |
+| `rollback` | `rollback` | Только `main`, `when: on_failure` (после провала предыдущих стадий) | Образ `python:3.12-slim`; установка `ansible`; переход в `ansible`; запуск `ansible-playbook site.yml` с `image=$PREVIOUS_IMAGE` и параметрами `registry_url`, `registry_user`, `registry_password` | Попытка отката на тег `previous` (если он существует) |
 
 
 
 ## 4. Что реально работает и что частично
 Важно:
 - В репозитории есть `docker-compose.prod.yml`, но фактический деплой в CI выполняется через Ansible (`ansible-playbook site.yml`), а не через этот файл напрямую.
-- Внутри Ansible есть структурные дефекты ролей (см. раздел ограничений), поэтому реальная воспроизводимость деплоя ограничена.
 ### Реализовано
 - `lint`: запуск `pre-commit` в CI.
 - `test`: запуск `pytest` в CI с сервисом `postgres:15`.
 - `build`: сборка и push образа через Kaniko.
 - `publish`: выставление тега `latest` для `main`.
 - `terraform`: запуск `terraform init/validate/plan/apply` для `main`.
+- `deploy`: Ansible-роль рендерит `.env`, `docker-compose.yml`, `Caddyfile`, подтягивает образ и поднимает стек.
+- `health_check`: endpoint `/health` присутствует, проверяется через HTTPS по домену.
+- `rollback`: сохраняется предыдущий `latest` в теге `previous`, выполняется откат при падении.
 
 ### Частично реализовано / с критическими ограничениями
-- `deploy`:
-  - CI-джоб есть, но Ansible-структура неполная.
-  - В `roles/app/tasks/main.yml` присутствуют только 3 задачи (установка Docker и логин в registry).
-  - Шаги реального запуска контейнера ошибочно находятся в шаблоне `roles/app/templates/docker-compose.yml.j2` и не выполняются как задачи.
-- `health_check`:
-  - Проверяется `http://$APP_PUBLIC_IP/health`.
-  - В Django URLConf endpoint `/health` отсутствует.
 - `rollback`:
-  - Джоб объявлен.
-  - Использует переменную `$PREVIOUS_IMAGE`, которая в репозитории не задаётся.
-  - Вызывает тот же playbook, который уже имеет проблемы с ролями.
+  - хранится только один предыдущий тег (`previous`), поэтому первый деплой откатывать некуда.
 
 ### Отсутствует
 - Отдельные deploy-контуры `dev/prod`.
 - Стадия/механизм `notify` (Slack/Telegram/email/webhook уведомления из CI не реализованы).
-- Явный механизм фиксации и вычисления предыдущего стабильного тега для отката.
+- История стабильных тегов глубже одного шага.
 
 ## 5. Соответствие целям ВКР
 
@@ -114,7 +107,7 @@ This is a demo project that demonstrates the use of Django, Docker, and GitLab C
 ## 6. Текущие ограничения
 
 - Для `MANAGE_DNS=true` требуется делегирование NS у регистратора на DNS-зону из Yandex Cloud, иначе ACME challenge для TLS не пройдет.
-- Откат зависит от `$PREVIOUS_IMAGE`, механизм получения/хранения которого не реализован.
+- Откат ограничен одним тегом `previous`; на первом деплое откатывать некуда.
 - Для production обязательны секреты в CI/CD (`DJANGO_SECRET_KEY`, `DB_PASSWORD`, registry credentials).
 - Рекомендуется вынести чувствительные значения из tracked-файлов `.envs/.production/*` и `.envs/.local/*`.
 - В репозитории отсутствуют CI-уведомления (`notify`), webhooks как часть пайплайна не настроены.
