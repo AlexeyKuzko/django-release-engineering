@@ -206,6 +206,8 @@ ansible_deploy:
     - job: terraform_apply
       artifacts: true
   before_script:
+    - apt-get update
+    - apt-get install -y openssh-client
     - pip install ansible
   script:
     - ansible-playbook -i ansible/inventory/hosts.generated.ini ansible/site.yml
@@ -251,6 +253,8 @@ rollback:
     - job: publish_latest
       artifacts: true
   before_script:
+    - apt-get update
+    - apt-get install -y openssh-client
     - pip install ansible
   script:
     - |
