@@ -109,10 +109,23 @@ terraform_apply:
     TF_VAR_manage_dns: "${MANAGE_DNS:-false}"
     TF_VAR_dns_zone: "${DNS_ZONE:-example.com}"
     TF_VAR_dns_zone_resource_name: "${DNS_ZONE_RESOURCE_NAME:-diploma-zone}"
+    TF_CLI_CONFIG_FILE: "$CI_PROJECT_DIR/infra/terraform.rc"
     AWS_DEFAULT_REGION: "ru-central1"
     AWS_EC2_METADATA_DISABLED: "true"
   before_script:
     - cd infra
+    - |
+      cat > "$TF_CLI_CONFIG_FILE" <<'EOF'
+      provider_installation {
+        network_mirror {
+          url = "https://terraform-mirror.yandexcloud.net/"
+          include = ["registry.terraform.io/*/*"]
+        }
+        direct {
+          exclude = ["registry.terraform.io/*/*"]
+        }
+      }
+      EOF
   script:
     - |
       if [ -z "$YC_SERVICE_ACCOUNT_KEY" ]; then
