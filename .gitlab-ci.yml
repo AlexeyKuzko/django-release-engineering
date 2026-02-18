@@ -208,20 +208,20 @@ ansible_deploy:
   before_script:
     - pip install ansible
   script:
-    - ansible-playbook -i ansible/inventory/hosts.generated.ini ansible/site.yml \
-        --extra-vars "image=$IMAGE_TAG \
-                      registry_url=$CI_REGISTRY \
-                      registry_user=$CI_REGISTRY_USER \
-                      registry_password=$CI_REGISTRY_PASSWORD \
-                      app_domain=$APP_DOMAIN \
-                      app_public_ip=$APP_PUBLIC_IP \
-                      db_host=$DB_PRIVATE_IP \
-                      db_name=${DB_NAME:-diploma} \
-                      db_user=${DB_USER:-diploma_user} \
-                      db_password=${DB_PASSWORD:-change-me-in-ci} \
-                      django_secret_key=${DJANGO_SECRET_KEY:-change-me-in-ci} \
-                      django_admin_url=${DJANGO_ADMIN_URL:-admin/} \
-                      caddy_acme_email=${TLS_ACME_EMAIL:-admin@$APP_DOMAIN} \
+    - ansible-playbook -i ansible/inventory/hosts.generated.ini ansible/site.yml
+        --extra-vars "image=$IMAGE_TAG
+                      registry_url=$CI_REGISTRY
+                      registry_user=$CI_REGISTRY_USER
+                      registry_password=$CI_REGISTRY_PASSWORD
+                      app_domain=$APP_DOMAIN
+                      app_public_ip=$APP_PUBLIC_IP
+                      db_host=$DB_PRIVATE_IP
+                      db_name=${DB_NAME:-diploma}
+                      db_user=${DB_USER:-diploma_user}
+                      db_password=${DB_PASSWORD:-change-me-in-ci}
+                      django_secret_key=${DJANGO_SECRET_KEY:-change-me-in-ci}
+                      django_admin_url=${DJANGO_ADMIN_URL:-admin/}
+                      caddy_acme_email=${TLS_ACME_EMAIL:-admin@$APP_DOMAIN}
                       app_subnet_cidr=${APP_SUBNET_CIDR:-10.10.1.0/24}"
   only:
     - main
@@ -259,20 +259,20 @@ rollback:
         exit 0
       fi
     - 'echo "Rollback to previous image: $PREVIOUS_IMAGE"'
-    - ansible-playbook -i ansible/inventory/hosts.generated.ini ansible/site.yml \
-        --extra-vars "image=$PREVIOUS_IMAGE \
-                      registry_url=$CI_REGISTRY \
-                      registry_user=$CI_REGISTRY_USER \
-                      registry_password=$CI_REGISTRY_PASSWORD \
-                      app_domain=$APP_DOMAIN \
-                      app_public_ip=$APP_PUBLIC_IP \
-                      db_host=$DB_PRIVATE_IP \
-                      db_name=${DB_NAME:-diploma} \
-                      db_user=${DB_USER:-diploma_user} \
-                      db_password=${DB_PASSWORD:-change-me-in-ci} \
-                      django_secret_key=${DJANGO_SECRET_KEY:-change-me-in-ci} \
-                      django_admin_url=${DJANGO_ADMIN_URL:-admin/} \
-                      caddy_acme_email=${TLS_ACME_EMAIL:-admin@$APP_DOMAIN} \
+    - ansible-playbook -i ansible/inventory/hosts.generated.ini ansible/site.yml
+        --extra-vars "image=$PREVIOUS_IMAGE
+                      registry_url=$CI_REGISTRY
+                      registry_user=$CI_REGISTRY_USER
+                      registry_password=$CI_REGISTRY_PASSWORD
+                      app_domain=$APP_DOMAIN
+                      app_public_ip=$APP_PUBLIC_IP
+                      db_host=$DB_PRIVATE_IP
+                      db_name=${DB_NAME:-diploma}
+                      db_user=${DB_USER:-diploma_user}
+                      db_password=${DB_PASSWORD:-change-me-in-ci}
+                      django_secret_key=${DJANGO_SECRET_KEY:-change-me-in-ci}
+                      django_admin_url=${DJANGO_ADMIN_URL:-admin/}
+                      caddy_acme_email=${TLS_ACME_EMAIL:-admin@$APP_DOMAIN}
                       app_subnet_cidr=${APP_SUBNET_CIDR:-10.10.1.0/24}"
   only:
     - main
