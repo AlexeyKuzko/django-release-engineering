@@ -41,13 +41,13 @@ This is a demo project that demonstrates the use of Django, Docker, and GitLab C
 
 ## 3. Архитектура CI/CD
 ### Общая схема пайплайна:
-`lint -> test -> build -> publish -> terraform -> deploy -> health_check -> rollback (optional)`
+`lint -> test -> build -> publish -> terraform (apply, destroy manual) -> deploy -> health_check -> rollback (optional)`
 ### Назначение этапов (stage) пайплайна:
 - `lint` - запуск pre-commit-hooks, django-upgrade, ruff, djLint
 - `test` - запуск pytest
 - `build` - сборка Docker-образа приложения и push в Container Registry с тегом commit SHA
 - `publish` - публикация тегированного образа в GitLab Container Registry
-- `terraform` - создание инфраструктуры для деплоя с Terraform apply
+- `terraform` - создание инфраструктуры для деплоя (Terraform apply) и ручное удаление (Terraform destroy)
 - `deploy` - запуск Ansible-плейбука для деплоя приложения, БД и мониторинга
 - `health_check` - проверка ручки health у задеплоенного приложения
 - `rollback` - в случае провала `health_check` осуществляет откат к предыдущему образу из Container Registry
@@ -61,6 +61,7 @@ This is a demo project that demonstrates the use of Django, Docker, and GitLab C
 | `test` | `test_pytest` | После `lint`                                                 | Образ `ghcr.io/astral-sh/uv:python3.13-bookworm`; сервис `postgres:15`; настройка `DATABASE_URL`; установка `build-essential`, `libpq-dev`; `uv sync --locked`; `uv run pytest` | Проверка корректности тестами, при падении тестов дальнейшие стадии не запускаются |
 | `build` | `build_image` | После `test`                                                 | Сборка через Kaniko: создание `/kaniko/.docker/config.json`; запуск `/kaniko/executor` с `--context "$CI_PROJECT_DIR"`, `--dockerfile "$CI_PROJECT_DIR/Dockerfile"`, `--destination "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"` (`IMAGE_TAG`), `--cache=true` | Docker-образ собирается и сразу пушится в GitLab Container Registry с тегом коммита |
 | `publish` | `publish_latest` | Только `main`, после `build_image` (`needs`)                 | Образ `gcr.io/go-containerregistry/crane:debug`; `crane auth login` в `$CI_REGISTRY`; если `latest` существует — `crane tag $LATEST_TAG previous`, затем `crane tag $IMAGE_TAG latest` | Образ с тегом коммита получает `latest`, предыдущий `latest` сохраняется в теге `previous` |
+| `terraform` | `terraform_destroy` | Только `main`, вручную (`when: manual`)                      | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init`; `terraform destroy -auto-approve` | Полное удаление инфраструктуры по Terraform |
 | `terraform` | `terraform_apply` | Только `main`                                                | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init`; `terraform validate`; `terraform plan -out=tfplan`; `terraform apply -auto-approve tfplan`; сохранение артефакта `infra/terraform.tfstate` | Инфраструктура создается или обновляется по Terraform |
 | `deploy` | `ansible_deploy` | Только `main`, после `terraform_apply` (`needs`)             | Образ `python:3.12-slim`; `pip install ansible`; переход в `ansible`; `ansible-playbook site.yml` с `--extra-vars`: `image=$IMAGE_TAG`, `registry_url=$CI_REGISTRY`, `registry_user=$CI_REGISTRY_USER`, `registry_password=$CI_REGISTRY_PASSWORD` | Попытка развернуть приложение и сопутствующие сервисы на подготовленной инфраструктуре |
 | `health_check` | `health_check` | Только `main`, после `ansible_deploy` (`needs`)              | Образ `curlimages/curl:latest`; вывод `Running health_check test...`; проверка `curl -f https://$APP_DOMAIN/health` | Подтверждение доступности приложения по HTTPS-домену, при неуспехе стадия падает |
@@ -77,6 +78,7 @@ This is a demo project that demonstrates the use of Django, Docker, and GitLab C
 - `build`: сборка и push образа через Kaniko.
 - `publish`: выставление тега `latest` для `main`.
 - `terraform`: запуск `terraform init/validate/plan/apply` для `main`.
+- `terraform_destroy`: ручное удаление инфраструктуры через `terraform destroy`.
 - `deploy`: Ansible-роль рендерит `.env`, `docker-compose.yml`, `Caddyfile`, подтягивает образ и поднимает стек.
 - `health_check`: endpoint `/health` присутствует, проверяется через HTTPS по домену.
 - `rollback`: сохраняется предыдущий `latest` в теге `previous`, выполняется откат при падении.
@@ -108,6 +110,7 @@ This is a demo project that demonstrates the use of Django, Docker, and GitLab C
 
 - Для `MANAGE_DNS=true` требуется делегирование NS у регистратора на DNS-зону из Yandex Cloud, иначе ACME challenge для TLS не пройдет.
 - Откат ограничен одним тегом `previous`; на первом деплое откатывать некуда.
+- Полное удаление инфраструктуры не выполняется автоматически; для этого предусмотрен ручной job `terraform_destroy`.
 - Для production обязательны секреты в CI/CD (`DJANGO_SECRET_KEY`, `DB_PASSWORD`, registry credentials).
 - Рекомендуется вынести чувствительные значения из tracked-файлов `.envs/.production/*` и `.envs/.local/*`.
 - В репозитории отсутствуют CI-уведомления (`notify`), webhooks как часть пайплайна не настроены.
@@ -141,6 +144,7 @@ uv run python manage.py runserver
 - Ansible разворачивает приложение через Docker Compose и reverse-proxy `Caddy`.
 - Caddy автоматически получает/обновляет TLS-сертификат Let's Encrypt для домена.
 - `health_check` проверяет `https://<APP_DOMAIN>/health`.
+- Полное удаление инфраструктуры выполняется вручную через job `terraform_destroy`.
 
 ### Новые переменные Terraform
 

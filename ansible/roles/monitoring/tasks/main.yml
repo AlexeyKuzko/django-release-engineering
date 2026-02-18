@@ -1,9 +1,25 @@
+- name: Set default docker compose command
+  ansible.builtin.set_fact:
+    docker_compose_cmd: docker compose
+
 - name: Install monitoring runtime packages
-  ansible.builtin.apt:
-    name:
-      - docker.io
-      - docker-compose-plugin
-    update_cache: true
+  block:
+    - name: Install Docker with compose plugin
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-plugin
+        update_cache: true
+  rescue:
+    - name: Install Docker with docker-compose fallback
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose
+        update_cache: true
+    - name: Use docker-compose v1
+      ansible.builtin.set_fact:
+        docker_compose_cmd: docker-compose
 
 - name: Ensure Docker service is enabled and running
   ansible.builtin.service:
@@ -28,5 +44,5 @@
     mode: "0644"
 
 - name: Start monitoring stack
-  ansible.builtin.command: docker compose -f {{ monitoring_dir }}/docker-compose.yml up -d --remove-orphans
+  ansible.builtin.command: "{{ docker_compose_cmd }} -f {{ monitoring_dir }}/docker-compose.yml up -d --remove-orphans"
   changed_when: true

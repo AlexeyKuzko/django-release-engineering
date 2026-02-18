@@ -35,6 +35,13 @@ resource "yandex_vpc_security_group" "db_sg" {
 
   ingress {
     protocol          = "TCP"
+    description       = "SSH from App"
+    port              = 22
+    security_group_id = yandex_vpc_security_group.app_sg.id
+  }
+
+  ingress {
+    protocol          = "TCP"
     description       = "Postgres from App"
     port              = 5432
     security_group_id = yandex_vpc_security_group.app_sg.id
