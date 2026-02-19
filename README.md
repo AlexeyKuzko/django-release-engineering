@@ -16,7 +16,6 @@ This is a demo project that demonstrates the use of Django, Docker, and GitLab C
 - Docker Compose: запуск сервисов на App VM и Monitoring VM
 
 ## 2. Архитектура проекта
-
 ### Используемые технологии:
 - `Django 5.2` - приложение.
 - `Gunicorn` - запуск WSGI-приложения.
@@ -41,7 +40,18 @@ This is a demo project that demonstrates the use of Django, Docker, and GitLab C
 
 ## 3. Архитектура CI/CD
 ### Общая схема пайплайна:
-`lint -> test -> build -> publish -> terraform (apply, destroy manual) -> deploy -> health_check -> rollback (optional)`
+
+```mermaid
+flowchart LR
+  A["lint: pre-commit via uv"] --> B["test: pytest via uv + postgres:15 service"]
+  B --> C["build: kaniko -> image:CI_COMMIT_SHA"]
+  C --> D["publish: crane tag latest + previous (only main)"]
+  D --> E["terraform apply: init/validate/plan/apply + outputs->inventory (only main)"]
+  E --> F["deploy: ansible-playbook with IMAGE_TAG (only main)"]
+  F --> G["health_check: curl https://APP_DOMAIN/health (only main)"]
+  G --> H["rollback: ansible-playbook with PREVIOUS_IMAGE (on_failure, only main)"]
+  E -. manual .-> X["terraform destroy (manual, only main)"]
+```
 ### Назначение этапов (stage) пайплайна:
 - `lint` - запуск pre-commit-hooks, django-upgrade, ruff, djLint
 - `test` - запуск pytest
