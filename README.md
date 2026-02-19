@@ -43,14 +43,14 @@ This is a demo project that demonstrates the use of Django, Docker, and GitLab C
 
 ```mermaid
 flowchart LR
-  A["lint: pre-commit via uv"] --> B["test: pytest via uv + postgres:15 service"]
-  B --> C["build: kaniko -> image:CI_COMMIT_SHA"]
-  C --> D["publish: crane tag latest + previous (only main)"]
-  D --> E["terraform apply: init/validate/plan/apply + outputs->inventory (only main)"]
-  E --> F["deploy: ansible-playbook with IMAGE_TAG (only main)"]
-  F --> G["health_check: curl https://APP_DOMAIN/health (only main)"]
-  G --> H["rollback: ansible-playbook with PREVIOUS_IMAGE (on_failure, only main)"]
-  E -. manual .-> X["terraform destroy (manual, only main)"]
+  A["lint"] --> B["test"]
+  B --> C["build"]
+  C --> D["publish"]
+  D --> E["terraform_apply"]
+  E --> F["deploy"]
+  F --> G["health_check"]
+  G --> H["rollback"]
+  E -. manual .-> X["terraform_destroy"]
 ```
 ### Назначение этапов (stage) пайплайна:
 - `lint` - запуск pre-commit-hooks, django-upgrade, ruff, djLint
