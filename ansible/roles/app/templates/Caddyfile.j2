@@ -1,10 +1,22 @@
 {
   email {{ caddy_acme_email }}
+  default_sni {{ app_public_ip }}
 }
 
 {% set app_domain_is_ipv4 = app_domain | regex_search('^\d+\.\d+\.\d+\.\d+$') %}
 {% set app_domain_equals_public_ip = app_domain == app_public_ip %}
 
+https://{{ app_public_ip }} {
+  tls internal
+  encode gzip zstd
+  reverse_proxy web:8000
+}
+
+http://{{ app_public_ip }} {
+  encode gzip zstd
+  reverse_proxy web:8000
+}
+{% if not app_domain_equals_public_ip %}
 {% if app_domain_is_ipv4 %}
 https://{{ app_domain }} {
   tls internal
@@ -22,16 +34,4 @@ http://{{ app_domain }} {
   reverse_proxy web:8000
 }
 {% endif %}
-
-{% if not app_domain_equals_public_ip %}
-https://{{ app_public_ip }} {
-  tls internal
-  encode gzip zstd
-  reverse_proxy web:8000
-}
-
-http://{{ app_public_ip }} {
-  encode gzip zstd
-  reverse_proxy web:8000
-}
 {% endif %}

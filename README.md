@@ -177,5 +177,8 @@ uv run python manage.py runserver
 ### DNS делегирование
 
 Если `MANAGE_DNS=true`, Terraform создаёт публичную DNS-зону.
-Terraform отдаёт `dns_zone_id` в output; NS-серверы зоны нужно взять в Yandex Cloud DNS UI/API и делегировать домен у регистратора.
+Terraform отдаёт в output:
+- `dns_zone_id`
+- `dns_zone_name`
+- `dns_delegation_name_servers` (по умолчанию `ns1.yandexcloud.net.` и `ns2.yandexcloud.net.`)
 Без делегирования Let's Encrypt не сможет пройти HTTP-01 challenge.
