@@ -12,7 +12,7 @@ variable "zone" {
 variable "os_image_family" {
   description = "Compute image family name for base OS."
   type        = string
-  default     = "ubuntu-2204-lts"
+  default     = "ubuntu-2404-lts"
 }
 
 variable "public_cidr" {

@@ -350,6 +350,8 @@ health_check:
       set -e
 
       if [ "$rc" -eq 0 ]; then
+        echo "Running HTTPS homepage check for ${APP_DOMAIN}..."
+        curl -fsS --retry 6 --retry-delay 10 --retry-all-errors "https://${APP_DOMAIN}/"
         exit 0
       fi
 
@@ -365,6 +367,8 @@ health_check:
 
       echo "DNS for ${APP_DOMAIN} is not resolvable yet. Fallback to HTTP health check by IP ${APP_PUBLIC_IP}."
       curl -fsS --retry 30 --retry-delay 10 --retry-all-errors "http://${APP_PUBLIC_IP}/health"
+      echo "Running fallback HTTP homepage check by IP ${APP_PUBLIC_IP}."
+      curl -fsS --retry 30 --retry-delay 10 --retry-all-errors "http://${APP_PUBLIC_IP}/"
   only:
     - main
 

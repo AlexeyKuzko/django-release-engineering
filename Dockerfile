@@ -2,10 +2,10 @@ FROM python:3.13-slim
 LABEL authors="Alexey Kuzko"
 
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV DJANGO_SETTINGS_MODULE=config.settings.base
-ENV DJANGO_DEBUG=False
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DJANGO_SETTINGS_MODULE=config.settings.production \
+    DJANGO_DEBUG=False
 
 WORKDIR /app
 
@@ -27,9 +27,17 @@ RUN pip install --no-cache-dir uv \
 # Копируем код проекта
 COPY . .
 
-# Сборка статики
-RUN python manage.py collectstatic --noinput \
-    && python manage.py compress --force
+# Сборка статики с production-настройками и build-time значениями обязательных env
+RUN DJANGO_SECRET_KEY=docker-build-secret \
+    DJANGO_ADMIN_URL=admin/ \
+    DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1 \
+    DJANGO_SECURE_SSL_REDIRECT=False \
+    python manage.py collectstatic --noinput \
+    && DJANGO_SECRET_KEY=docker-build-secret \
+    DJANGO_ADMIN_URL=admin/ \
+    DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1 \
+    DJANGO_SECURE_SSL_REDIRECT=False \
+    python manage.py compress --force
 
 # ---- Entrypoint ----
 COPY entrypoint.sh /entrypoint.sh

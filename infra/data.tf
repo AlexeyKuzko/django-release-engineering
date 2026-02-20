@@ -1,3 +1,3 @@
-data "yandex_compute_image" "ubuntu_2204_lts" {
+data "yandex_compute_image" "base_os" {
   family = var.os_image_family
 }
