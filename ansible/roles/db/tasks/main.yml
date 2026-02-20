@@ -61,8 +61,11 @@
   changed_when: "'CREATE ROLE' in create_user_result.stdout"
 
 - name: Ensure DB user password is up to date
-  ansible.builtin.command: >
-    sudo -u postgres -- psql -c "ALTER USER \"{{ db_user }}\" WITH ENCRYPTED PASSWORD '{{ db_password | replace("'", "''") }}';"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    sudo -u postgres -- psql -c "ALTER USER \"{{ db_user }}\" WITH ENCRYPTED PASSWORD '{{ db_password | replace(\"'\", \"''\") }}';"
+  args:
+    executable: /bin/bash
   changed_when: false
 
 - name: Ensure database exists
