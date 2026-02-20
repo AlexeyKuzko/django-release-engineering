@@ -62,7 +62,7 @@
 
 - name: Ensure DB user password is up to date
   ansible.builtin.command: >
-    sudo -u postgres -- psql -c "ALTER USER \"{{ db_user }}\" WITH ENCRYPTED PASSWORD '{{ db_password | replace(\"'\", \"''\") }}';"
+    sudo -u postgres -- psql -c "ALTER USER \"{{ db_user }}\" WITH ENCRYPTED PASSWORD '{{ db_password | replace("'", "''") }}';"
   changed_when: false
 
 - name: Ensure database exists
