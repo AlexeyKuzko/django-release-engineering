@@ -63,7 +63,12 @@
 - name: Ensure DB user password is up to date
   ansible.builtin.shell: |
     set -euo pipefail
-    sudo -u postgres -- psql -c "ALTER USER \"{{ db_user }}\" WITH ENCRYPTED PASSWORD '{{ db_password | replace(\"'\", \"''\") }}';"
+    sudo -u postgres -- psql \
+      -v ON_ERROR_STOP=1 \
+      -v db_user={{ db_user | quote }} \
+      -v db_password={{ db_password | quote }} <<'SQL'
+    ALTER USER :"db_user" WITH ENCRYPTED PASSWORD :'db_password';
+    SQL
   args:
     executable: /bin/bash
   changed_when: false
