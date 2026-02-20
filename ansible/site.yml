@@ -1,5 +1,13 @@
 - hosts: all
   become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Wait for SSH to become available
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+        delay: 5
+    - name: Gather facts
+      ansible.builtin.setup:
   roles:
     - common
 

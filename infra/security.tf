@@ -41,10 +41,24 @@ resource "yandex_vpc_security_group" "db_sg" {
   }
 
   ingress {
+    protocol       = "TCP"
+    description    = "SSH from App subnet"
+    port           = 22
+    v4_cidr_blocks = [var.public_cidr]
+  }
+
+  ingress {
     protocol          = "TCP"
     description       = "Postgres from App"
     port              = 5432
     security_group_id = yandex_vpc_security_group.app_sg.id
+  }
+
+  ingress {
+    protocol       = "TCP"
+    description    = "Postgres from App subnet"
+    port           = 5432
+    v4_cidr_blocks = [var.public_cidr]
   }
 
   egress {

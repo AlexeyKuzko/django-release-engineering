@@ -1,29 +1,27 @@
-- name: Set default docker compose command
+- name: Refresh apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Check if docker-compose-plugin is available
+  ansible.builtin.command: apt-cache show docker-compose-plugin
+  register: docker_compose_plugin_info
+  changed_when: false
+  failed_when: false
+
+- name: Select docker compose package and command
   ansible.builtin.set_fact:
-    docker_compose_cmd: docker compose
+    docker_compose_cmd: "{{ 'docker compose' if docker_compose_plugin_info.rc == 0 else 'docker-compose' }}"
+    docker_compose_pkg: "{{ 'docker-compose-plugin' if docker_compose_plugin_info.rc == 0 else 'docker-compose' }}"
 
 - name: Install runtime packages
-  block:
-    - name: Install Docker with compose plugin
-      ansible.builtin.apt:
-        name:
-          - ca-certificates
-          - curl
-          - docker.io
-          - docker-compose-plugin
-        update_cache: true
-  rescue:
-    - name: Install Docker with docker-compose fallback
-      ansible.builtin.apt:
-        name:
-          - ca-certificates
-          - curl
-          - docker.io
-          - docker-compose
-        update_cache: true
-    - name: Use docker-compose v1
-      ansible.builtin.set_fact:
-        docker_compose_cmd: docker-compose
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - docker.io
+      - "{{ docker_compose_pkg }}"
+    update_cache: false
 
 - name: Ensure Docker service is enabled and running
   ansible.builtin.service:
@@ -90,6 +88,7 @@
     headers:
       Host: "{{ app_domain }}"
     status_code: 200
+    use_proxy: false
   register: app_health
   retries: 15
   delay: 10
