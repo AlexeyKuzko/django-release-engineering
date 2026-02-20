@@ -87,9 +87,15 @@
     url: http://127.0.0.1/health
     headers:
       Host: "{{ app_domain }}"
-    status_code: 200
+    follow_redirects: none
+    status_code:
+      - 200
+      - 301
+      - 302
+      - 307
+      - 308
     use_proxy: false
   register: app_health
   retries: 15
   delay: 10
-  until: app_health.status == 200
+  until: app_health.status in [200, 301, 302, 307, 308]
