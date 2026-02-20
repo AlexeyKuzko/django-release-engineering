@@ -19,15 +19,23 @@ variables:
 # Run linters: pre-commit-hooks, django-upgrade, ruff, djLint
 linter_check:
   stage: lint
-  image: python:3.13-slim
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm
+  variables:
+    UV_CACHE_DIR: $CI_PROJECT_DIR/.cache/uv
+    PRE_COMMIT_HOME: $CI_PROJECT_DIR/.cache/pre-commit
+  cache:
+    key:
+      files:
+        - uv.lock
+        - .pre-commit-config.yaml
+    paths:
+      - .cache/uv
+      - .cache/pre-commit
   before_script:
     - apt-get update
-    - apt-get install -y git build-essential libpq-dev
-    - pip install uv
+    - apt-get install -y --no-install-recommends git
   script:
-    - uv venv
-    - uv sync --locked
-    - uv run pre-commit run --show-diff-on-failure --color=always --all-files
+    - uv tool run pre-commit==4.5.1 run --show-diff-on-failure --color=always --all-files
 
 # Run pytest
 test_pytest:
