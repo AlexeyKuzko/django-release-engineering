@@ -33,6 +33,8 @@ linter_check:
 test_pytest:
   stage: test
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
+  needs:
+    - job: linter_check
   services:
     - postgres:15
   variables:
@@ -49,6 +51,8 @@ build_image:
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
+  needs:
+    - job: test_pytest
   script:
     - mkdir -p /kaniko/.docker
     - |
@@ -76,7 +80,7 @@ publish_latest:
     name: gcr.io/go-containerregistry/crane:debug
     entrypoint: [""]
   needs:
-    - build_image
+    - job: build_image
   script:
     - crane auth login $CI_REGISTRY -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
     - "printf '' > previous.env"
@@ -97,78 +101,13 @@ publish_latest:
     - main
 
 # Create infra with terraform apply and prepare inventory from outputs
-terraform_destroy:
-  stage: terraform
-  image:
-    name: hashicorp/terraform:1.6
-    entrypoint: [""]
-  variables:
-    TF_VAR_cloud_id: "$CLOUD_ID"
-    TF_VAR_folder_id: "$FOLDER_ID"
-    TF_CLI_CONFIG_FILE: "$CI_PROJECT_DIR/infra/terraform.rc"
-    AWS_DEFAULT_REGION: "ru-central1"
-    AWS_EC2_METADATA_DISABLED: "true"
-  before_script:
-    - cd infra
-    - |
-      cat > "$TF_CLI_CONFIG_FILE" <<'EOF'
-      provider_installation {
-        network_mirror {
-          url = "https://terraform-mirror.yandexcloud.net/"
-          include = ["registry.terraform.io/*/*"]
-        }
-        direct {
-          exclude = ["registry.terraform.io/*/*"]
-        }
-      }
-      EOF
-  script:
-    - |
-      if [ -z "$YC_SERVICE_ACCOUNT_KEY" ]; then
-        echo "YC_SERVICE_ACCOUNT_KEY is not set"
-        exit 1
-      fi
-      if [ -f "$YC_SERVICE_ACCOUNT_KEY" ]; then
-        export TF_VAR_service_account_key_file="$YC_SERVICE_ACCOUNT_KEY"
-      else
-        export TF_VAR_service_account_key_file="/tmp/yc-sa-key.json"
-        first_char="$(printf '%s' "$YC_SERVICE_ACCOUNT_KEY" | head -c 1)"
-        if [ "$first_char" = "{" ]; then
-          printf '%s' "$YC_SERVICE_ACCOUNT_KEY" > "$TF_VAR_service_account_key_file"
-        else
-          printf '%s' "$YC_SERVICE_ACCOUNT_KEY" | base64 -d > "$TF_VAR_service_account_key_file"
-        fi
-        chmod 600 "$TF_VAR_service_account_key_file"
-      fi
-    - |
-      if [ -z "$SSH_PUBLIC_KEY" ]; then
-        echo "SSH_PUBLIC_KEY is not set"
-        exit 1
-      fi
-      if printf '%s' "$SSH_PUBLIC_KEY" | grep -qE '^(ssh-|ecdsa-|sk-).* '; then
-        export TF_VAR_ssh_public_key="$SSH_PUBLIC_KEY"
-      else
-        export TF_VAR_ssh_public_key="$(printf '%s' "$SSH_PUBLIC_KEY" | base64 -d)"
-      fi
-    - |
-      export TF_VAR_app_domain="${APP_DOMAIN:-app.example.com}"
-      export TF_VAR_manage_dns="${MANAGE_DNS:-false}"
-      export TF_VAR_dns_zone="${DNS_ZONE:-example.com}"
-      export TF_VAR_dns_zone_resource_name="${DNS_ZONE_RESOURCE_NAME:-diploma-zone}"
-    - export AWS_ACCESS_KEY_ID="${YC_STORAGE_ACCESS_KEY:-$AWS_ACCESS_KEY_ID}"
-    - export AWS_SECRET_ACCESS_KEY="${YC_STORAGE_SECRET_KEY:-$AWS_SECRET_ACCESS_KEY}"
-    - terraform init -backend-config="access_key=${AWS_ACCESS_KEY_ID}" -backend-config="secret_key=${AWS_SECRET_ACCESS_KEY}"
-    - terraform destroy -auto-approve
-  when: manual
-  allow_failure: true
-  only:
-    - main
-
 terraform_apply:
   stage: terraform
   image:
     name: hashicorp/terraform:1.6
     entrypoint: [""]
+  needs:
+    - job: publish_latest
   variables:
     TF_VAR_cloud_id: "$CLOUD_ID"
     TF_VAR_folder_id: "$FOLDER_ID"
@@ -265,6 +204,77 @@ terraform_apply:
   only:
     - main
 
+
+# Manually distroy terraform resources when needed
+terraform_destroy:
+  stage: terraform
+  image:
+    name: hashicorp/terraform:1.6
+    entrypoint: [""]
+  needs:
+    - job: terraform_apply
+  variables:
+    TF_VAR_cloud_id: "$CLOUD_ID"
+    TF_VAR_folder_id: "$FOLDER_ID"
+    TF_CLI_CONFIG_FILE: "$CI_PROJECT_DIR/infra/terraform.rc"
+    AWS_DEFAULT_REGION: "ru-central1"
+    AWS_EC2_METADATA_DISABLED: "true"
+  before_script:
+    - cd infra
+    - |
+      cat > "$TF_CLI_CONFIG_FILE" <<'EOF'
+      provider_installation {
+        network_mirror {
+          url = "https://terraform-mirror.yandexcloud.net/"
+          include = ["registry.terraform.io/*/*"]
+        }
+        direct {
+          exclude = ["registry.terraform.io/*/*"]
+        }
+      }
+      EOF
+  script:
+    - |
+      if [ -z "$YC_SERVICE_ACCOUNT_KEY" ]; then
+        echo "YC_SERVICE_ACCOUNT_KEY is not set"
+        exit 1
+      fi
+      if [ -f "$YC_SERVICE_ACCOUNT_KEY" ]; then
+        export TF_VAR_service_account_key_file="$YC_SERVICE_ACCOUNT_KEY"
+      else
+        export TF_VAR_service_account_key_file="/tmp/yc-sa-key.json"
+        first_char="$(printf '%s' "$YC_SERVICE_ACCOUNT_KEY" | head -c 1)"
+        if [ "$first_char" = "{" ]; then
+          printf '%s' "$YC_SERVICE_ACCOUNT_KEY" > "$TF_VAR_service_account_key_file"
+        else
+          printf '%s' "$YC_SERVICE_ACCOUNT_KEY" | base64 -d > "$TF_VAR_service_account_key_file"
+        fi
+        chmod 600 "$TF_VAR_service_account_key_file"
+      fi
+    - |
+      if [ -z "$SSH_PUBLIC_KEY" ]; then
+        echo "SSH_PUBLIC_KEY is not set"
+        exit 1
+      fi
+      if printf '%s' "$SSH_PUBLIC_KEY" | grep -qE '^(ssh-|ecdsa-|sk-).* '; then
+        export TF_VAR_ssh_public_key="$SSH_PUBLIC_KEY"
+      else
+        export TF_VAR_ssh_public_key="$(printf '%s' "$SSH_PUBLIC_KEY" | base64 -d)"
+      fi
+    - |
+      export TF_VAR_app_domain="${APP_DOMAIN:-app.example.com}"
+      export TF_VAR_manage_dns="${MANAGE_DNS:-false}"
+      export TF_VAR_dns_zone="${DNS_ZONE:-example.com}"
+      export TF_VAR_dns_zone_resource_name="${DNS_ZONE_RESOURCE_NAME:-diploma-zone}"
+    - export AWS_ACCESS_KEY_ID="${YC_STORAGE_ACCESS_KEY:-$AWS_ACCESS_KEY_ID}"
+    - export AWS_SECRET_ACCESS_KEY="${YC_STORAGE_SECRET_KEY:-$AWS_SECRET_ACCESS_KEY}"
+    - terraform init -backend-config="access_key=${AWS_ACCESS_KEY_ID}" -backend-config="secret_key=${AWS_SECRET_ACCESS_KEY}"
+    - terraform destroy -auto-approve
+  when: manual
+  allow_failure: true
+  only:
+    - main
+
 # Deploy app, database and monitoring via Ansible
 ansible_deploy:
   stage: deploy
@@ -338,6 +348,7 @@ rollback:
     ANSIBLE_HOST_KEY_CHECKING: "False"
   when: on_failure
   needs:
+    - job: health_check
     - job: terraform_apply
       artifacts: true
     - job: publish_latest
