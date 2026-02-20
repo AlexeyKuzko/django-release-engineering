@@ -342,8 +342,29 @@ health_check:
       artifacts: true
     - job: ansible_deploy
   script:
-    - echo "Running HTTPS health check for $APP_DOMAIN..."
-    - curl -fsS --retry 30 --retry-delay 10 --retry-all-errors "https://$APP_DOMAIN/health"
+    - |
+      echo "Running HTTPS health check for ${APP_DOMAIN}..."
+      set +e
+      curl -fsS --retry 6 --retry-delay 10 --retry-all-errors "https://${APP_DOMAIN}/health"
+      rc=$?
+      set -e
+
+      if [ "$rc" -eq 0 ]; then
+        exit 0
+      fi
+
+      if [ "$rc" -ne 6 ]; then
+        echo "HTTPS health check failed with curl exit code ${rc}"
+        exit "$rc"
+      fi
+
+      if [ -z "${APP_PUBLIC_IP:-}" ]; then
+        echo "APP_PUBLIC_IP is empty, cannot run fallback health check"
+        exit 1
+      fi
+
+      echo "DNS for ${APP_DOMAIN} is not resolvable yet. Fallback to HTTP health check by IP ${APP_PUBLIC_IP}."
+      curl -fsS --retry 30 --retry-delay 10 --retry-all-errors "http://${APP_PUBLIC_IP}/health"
   only:
     - main
 

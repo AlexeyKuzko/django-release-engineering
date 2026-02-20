@@ -17,5 +17,5 @@ resource "yandex_dns_recordset" "app_a" {
   name    = "${local.app_domain_normalized}."
   type    = "A"
   ttl     = 300
-  data    = [yandex_compute_instance.app.network_interface.0.nat_ip_address]
+  data    = [yandex_vpc_address.app_public_ip.external_ipv4_address[0].address]
 }

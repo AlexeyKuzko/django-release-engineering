@@ -32,3 +32,11 @@ resource "yandex_vpc_subnet" "private" {
   route_table_id = yandex_vpc_route_table.private.id
   v4_cidr_blocks = [var.private_cidr]
 }
+
+resource "yandex_vpc_address" "app_public_ip" {
+  name = "app-public-ip"
+
+  external_ipv4_address {
+    zone_id = var.zone
+  }
+}

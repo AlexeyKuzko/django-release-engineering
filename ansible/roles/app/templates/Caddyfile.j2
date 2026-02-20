@@ -6,3 +6,8 @@
   encode gzip zstd
   reverse_proxy web:8000
 }
+
+http://{{ app_public_ip }} {
+  encode gzip zstd
+  reverse_proxy web:8000
+}
