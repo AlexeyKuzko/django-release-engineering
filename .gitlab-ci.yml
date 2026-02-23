@@ -396,14 +396,21 @@ health_check:
     - |
       echo "Running HTTPS health check for ${APP_DOMAIN}..."
       set +e
-      curl -fsS --retry 6 --retry-delay 10 --retry-all-errors "https://${APP_DOMAIN}/health"
+      curl -fsS --retry 30 --retry-delay 10 --retry-all-errors "https://${APP_DOMAIN}/health"
       rc=$?
       set -e
 
       if [ "$rc" -eq 0 ]; then
         echo "Running HTTPS homepage check for ${APP_DOMAIN}..."
-        curl -fsS --retry 6 --retry-delay 10 --retry-all-errors "https://${APP_DOMAIN}/"
+        curl -fsS --retry 30 --retry-delay 10 --retry-all-errors "https://${APP_DOMAIN}/"
         exit 0
+      fi
+
+      if [ "$rc" -eq 35 ]; then
+        echo "HTTPS health check failed with curl exit code 35 (TLS handshake alert)."
+        echo "Likely Caddy has not obtained a certificate for ${APP_DOMAIN} yet."
+        echo "Check DNS delegation/A-record and Caddy logs from ansible_deploy."
+        exit "$rc"
       fi
 
       if [ "$rc" -ne 6 ]; then
