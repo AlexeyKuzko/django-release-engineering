@@ -7,6 +7,7 @@ stages:
   - deploy
   - health_check
   - rollback
+  - notify
 
 variables:
   IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
@@ -481,4 +482,54 @@ rollback:
                       app_subnet_cidr=${APP_SUBNET_CIDR:-10.10.1.0/24}"
   environment:
     name: $DEPLOY_ENV
+  rules: *deploy_env_failure_rules
+
+# Notify in Telegram after pipeline completion
+notify_telegram_success:
+  stage: notify
+  image: curlimages/curl:latest
+  allow_failure: true
+  script:
+    - |
+      if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+        echo "TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set, skipping notify stage."
+        exit 0
+      fi
+    - |
+      MESSAGE="$(printf '%s\n' \
+        '[DEPLOY][SUCCESS]' \
+        "env: ${DEPLOY_ENV}" \
+        "project: ${CI_PROJECT_PATH}" \
+        "branch: ${CI_COMMIT_REF_NAME}" \
+        "commit: ${CI_COMMIT_SHORT_SHA}" \
+        "pipeline: ${CI_PIPELINE_URL}" \
+        "${APP_DOMAIN:+app: https://${APP_DOMAIN}}")"
+      curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+        --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+        --data-urlencode "text=${MESSAGE}" \
+        --data-urlencode "disable_web_page_preview=true"
+  rules: *deploy_env_rules
+
+notify_telegram_failure:
+  stage: notify
+  image: curlimages/curl:latest
+  allow_failure: true
+  script:
+    - |
+      if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+        echo "TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set, skipping notify stage."
+        exit 0
+      fi
+    - |
+      MESSAGE="$(printf '%s\n' \
+        '[DEPLOY][FAILED]' \
+        "env: ${DEPLOY_ENV}" \
+        "project: ${CI_PROJECT_PATH}" \
+        "branch: ${CI_COMMIT_REF_NAME}" \
+        "commit: ${CI_COMMIT_SHORT_SHA}" \
+        "pipeline: ${CI_PIPELINE_URL}")"
+      curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+        --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+        --data-urlencode "text=${MESSAGE}" \
+        --data-urlencode "disable_web_page_preview=true"
   rules: *deploy_env_failure_rules

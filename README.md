@@ -50,8 +50,10 @@ flowchart TD
     E --> F[ansible_deploy]
     F --> G[health_check]
     G --> H[Success]
+    H --> L[notify_success]
     G -->|on_failure| I[rollback]
     I --> J[Rolled back]
+    J --> M[notify_failure]
     E -. manual .-> K[terraform_destroy]
 
     style H fill:#4ade80
@@ -67,6 +69,7 @@ flowchart TD
 - `deploy` - запуск Ansible-плейбука для деплоя приложения, БД и мониторинга
 - `health_check` - проверка `/health` и главной страницы у задеплоенного приложения
 - `rollback` - в случае провала `health_check` осуществляет откат к предыдущему образу из Container Registry
+- `notify` - отправка уведомления в Telegram по итогам pipeline (`success`/`failure`)
 
 
 ### Что происходит на каждом из этапов pipeline
@@ -82,6 +85,7 @@ flowchart TD
 | `deploy` | `ansible_deploy` | Для `main` (prod) и `dev/develop` (dev), после `terraform_apply` (`needs`) | Образ `python:3.12-slim`; `pip install ansible`; переход в `ansible`; `ansible-playbook site.yml` с `--extra-vars`: `image=$IMAGE_TAG`, `registry_url=$CI_REGISTRY`, `registry_user=$CI_REGISTRY_USER`, `registry_password=$CI_REGISTRY_PASSWORD` | Попытка развернуть приложение и сопутствующие сервисы на подготовленной инфраструктуре |
 | `health_check` | `health_check` | Для `main` (prod) и `dev/develop` (dev), после `ansible_deploy` (`needs`) | Образ `curlimages/curl:latest`; проверки `curl -f https://$APP_DOMAIN/health` и `curl -f https://$APP_DOMAIN/` (с fallback на IP) | Подтверждение доступности приложения по HTTPS-домену, при неуспехе стадия падает |
 | `rollback` | `rollback` | Для `main` (prod) и `dev/develop` (dev), `when: on_failure` | Образ `python:3.12-slim`; установка `ansible`; переход в `ansible`; запуск `ansible-playbook site.yml` с `image=$PREVIOUS_IMAGE` и параметрами `registry_url`, `registry_user`, `registry_password` | Попытка отката на `previous-dev`/`previous-prod` (если тег существует) |
+| `notify` | `notify_telegram_success` / `notify_telegram_failure` | Для `main` (prod) и `dev/develop` (dev), `when: on_success` / `when: on_failure` | Образ `curlimages/curl:latest`; POST в Telegram Bot API `sendMessage` с данными pipeline; использует `TELEGRAM_BOT_TOKEN` и `TELEGRAM_CHAT_ID` | Отправка уведомления об успешном/неуспешном деплое в Telegram |
 
 
 
@@ -96,13 +100,13 @@ flowchart TD
 - `deploy`: Ansible-роль рендерит `.env`, `docker-compose.yml`, `Caddyfile`, подтягивает образ и поднимает стек.
 - `health_check`: проверяются endpoint `/health` и главная страница через HTTPS по домену (с fallback на IP).
 - `rollback`: сохраняется предыдущий `latest-$DEPLOY_ENV` в теге `previous-$DEPLOY_ENV`, выполняется откат при падении.
+- `notify`: отправляется уведомление в Telegram о результате pipeline (success/failure).
 
 ### Частично реализовано / с критическими ограничениями
 - `rollback`:
   - хранится только один предыдущий тег на окружение (`previous-<env>`), поэтому первый деплой откатывать некуда.
 
 ### Отсутствует
-- Стадия/механизм `notify` (Slack/Telegram/email/webhook уведомления из CI не реализованы).
 - История стабильных тегов глубже одного шага.
 
 ## 5. Соответствие целям ВКР
@@ -129,7 +133,7 @@ flowchart TD
 - Для production обязательны секреты в CI/CD (`DJANGO_SECRET_KEY`, `DB_PASSWORD`, registry credentials).
 - Чувствительные значения не должны храниться в git: используйте GitLab CI/CD Variables (masked/protected) и локальные секреты вне репозитория.
 - Если секреты ранее попадали в историю git, их нужно ротировать (ключи/пароли/токены) и считать скомпрометированными.
-- В репозитории отсутствуют CI-уведомления (`notify`), webhooks как часть пайплайна не настроены.
+- Telegram-уведомления требуют настройки CI/CD Variables: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (рекомендуется `masked/protected`, environment-scoped).
 - Для `dev/prod` нужно настроить environment-scoped переменные в GitLab (`APP_DOMAIN`, `DJANGO_SECRET_KEY`, `DB_PASSWORD` и т.д.), иначе окружения будут использовать fallback-значения.
 
 ## 7. Статус проекта
@@ -141,7 +145,7 @@ flowchart TD
 **Статус для ВКР:** Готово к защите (9/10)
 
 Проект полностью реализует заявленные цели:
-- Автоматизированный CI/CD pipeline (lint/test/build/publish/deploy)
+- Автоматизированный CI/CD pipeline (lint/test/build/publish/deploy/notify)
 - Infrastructure as Code (Terraform)
 - Configuration Management (Ansible)
 - Health-check и автоматический rollback
@@ -171,12 +175,13 @@ uv run python manage.py runserver
 
 ## 10. Автоматизированное развертывание с DNS и TLS (актуально)
 
-В проект добавлен полностью автоматизированный контур `Terraform -> Ansible -> HTTPS health-check`:
+В проект добавлен полностью автоматизированный контур `Terraform -> Ansible -> HTTPS health-check -> Telegram notify`:
 - Terraform создаёт/обновляет инфраструктуру и (опционально) DNS в Yandex Cloud.
 - `terraform_apply` формирует `ansible/inventory/hosts.generated.ini` из `terraform output`.
 - Ansible разворачивает приложение через Docker Compose и reverse-proxy `Caddy`.
 - Caddy автоматически получает/обновляет TLS-сертификат Let's Encrypt для домена.
 - `health_check` проверяет `https://<APP_DOMAIN>/health`.
+- `notify` отправляет результат pipeline в Telegram.
 - Полное удаление инфраструктуры выполняется вручную через job `terraform_destroy`.
 
 ### Архитектурная модель dev/prod (shared network)
@@ -189,7 +194,7 @@ uv run python manage.py runserver
 ## 11. Текущий статус проекта (Production-Ready)
 
 ### Реализовано полностью ✅
-- **CI Pipeline:** lint → test → build → publish (полностью автоматизировано)
+- **CI Pipeline:** lint → test → build → publish → deploy → health_check → rollback/notify (полностью автоматизировано)
 - **Terraform IaC:** VPC, subnets (public/private), NAT Gateway, security groups, VM (app/db/monitoring), DNS-зона
 - **Ansible деплой:** idempotent-роли для app, db, monitoring; авто-определение docker-compose команды
 - **Image Tagging:** commit SHA + `latest-dev/latest-prod` + `previous-dev/previous-prod` (для rollback)
