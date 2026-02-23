@@ -1,5 +1,5 @@
 resource "yandex_compute_instance" "db" {
-  name        = "db-vm"
+  name        = "${local.resource_prefix}-db-vm"
   platform_id = "standard-v3"
 
   resources {

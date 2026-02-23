@@ -1,5 +1,5 @@
 resource "yandex_vpc_security_group" "app_sg" {
-  name       = "app-sg"
+  name       = "${local.resource_prefix}-app-sg"
   network_id = yandex_vpc_network.main.id
 
   ingress {
@@ -30,7 +30,7 @@ resource "yandex_vpc_security_group" "app_sg" {
 }
 
 resource "yandex_vpc_security_group" "db_sg" {
-  name       = "db-sg"
+  name       = "${local.resource_prefix}-db-sg"
   network_id = yandex_vpc_network.main.id
 
   ingress {
@@ -68,7 +68,7 @@ resource "yandex_vpc_security_group" "db_sg" {
 }
 
 resource "yandex_vpc_security_group" "monitoring_sg" {
-  name       = "monitoring-sg"
+  name       = "${local.resource_prefix}-monitoring-sg"
   network_id = yandex_vpc_network.main.id
 
   ingress {

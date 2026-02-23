@@ -1,5 +1,5 @@
 resource "yandex_compute_instance" "monitoring" {
-  name        = "monitoring-vm"
+  name        = "${local.resource_prefix}-monitoring-vm"
   platform_id = "standard-v3"
 
   resources {

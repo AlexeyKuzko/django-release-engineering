@@ -70,12 +70,12 @@ flowchart LR
 | `lint` | `linter_check` | При каждом push в репозиторий                                | Образ `python:3.13-slim`; установка `git`, `build-essential`, `libpq-dev`, `uv`; `uv venv`; `uv sync --locked`; `uv run pre-commit run --show-diff-on-failure --color=always --all-files` | Проверка качества кода, при ошибке пайплайн останавливается |
 | `test` | `test_pytest` | После `lint`                                                 | Образ `ghcr.io/astral-sh/uv:python3.13-bookworm`; сервис `postgres:15`; настройка `DATABASE_URL`; установка `build-essential`, `libpq-dev`; `uv sync --locked`; `uv run pytest` | Проверка корректности тестами, при падении тестов дальнейшие стадии не запускаются |
 | `build` | `build_image` | После `test`                                                 | Сборка через Kaniko: создание `/kaniko/.docker/config.json`; запуск `/kaniko/executor` с `--context "$CI_PROJECT_DIR"`, `--dockerfile "$CI_PROJECT_DIR/Dockerfile"`, `--destination "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"` (`IMAGE_TAG`), `--cache=true` | Docker-образ собирается и сразу пушится в GitLab Container Registry с тегом коммита |
-| `publish` | `publish_latest` | Только `main`, после `build_image` (`needs`)                 | Образ `gcr.io/go-containerregistry/crane:debug`; `crane auth login` в `$CI_REGISTRY`; если `latest` существует — `crane tag $LATEST_TAG previous`, затем `crane tag $IMAGE_TAG latest` | Образ с тегом коммита получает `latest`, предыдущий `latest` сохраняется в теге `previous` |
-| `terraform` | `terraform_destroy` | Только `main`, вручную (`when: manual`)                      | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init`; `terraform destroy -auto-approve` | Полное удаление инфраструктуры по Terraform |
-| `terraform` | `terraform_apply` | Только `main`                                                | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init`; `terraform validate`; `terraform plan -out=tfplan`; `terraform apply -auto-approve tfplan`; сохранение артефакта `infra/terraform.tfstate` | Инфраструктура создается или обновляется по Terraform |
-| `deploy` | `ansible_deploy` | Только `main`, после `terraform_apply` (`needs`)             | Образ `python:3.12-slim`; `pip install ansible`; переход в `ansible`; `ansible-playbook site.yml` с `--extra-vars`: `image=$IMAGE_TAG`, `registry_url=$CI_REGISTRY`, `registry_user=$CI_REGISTRY_USER`, `registry_password=$CI_REGISTRY_PASSWORD` | Попытка развернуть приложение и сопутствующие сервисы на подготовленной инфраструктуре |
-| `health_check` | `health_check` | Только `main`, после `ansible_deploy` (`needs`)              | Образ `curlimages/curl:latest`; проверки `curl -f https://$APP_DOMAIN/health` и `curl -f https://$APP_DOMAIN/` (с fallback на IP) | Подтверждение доступности приложения по HTTPS-домену, при неуспехе стадия падает |
-| `rollback` | `rollback` | Только `main`, `when: on_failure` (после провала предыдущих стадий) | Образ `python:3.12-slim`; установка `ansible`; переход в `ansible`; запуск `ansible-playbook site.yml` с `image=$PREVIOUS_IMAGE` и параметрами `registry_url`, `registry_user`, `registry_password` | Попытка отката на тег `previous` (если он существует) |
+| `publish` | `publish_latest` | Для `main` (prod) и `dev/develop` (dev), после `build_image` (`needs`) | Образ `gcr.io/go-containerregistry/crane:debug`; `crane auth login` в `$CI_REGISTRY`; если `latest-$DEPLOY_ENV` существует — `crane tag ... previous-$DEPLOY_ENV`, затем `crane tag $IMAGE_TAG latest-$DEPLOY_ENV` | Образ с тегом коммита получает `latest-dev`/`latest-prod`, предыдущий хранится как `previous-dev`/`previous-prod` |
+| `terraform` | `terraform_destroy` | Для `main` (prod) и `dev/develop` (dev), вручную (`when: manual`) | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init` с backend key `${DEPLOY_ENV}/terraform.tfstate`; `terraform destroy -auto-approve` | Полное удаление инфраструктуры по выбранному окружению |
+| `terraform` | `terraform_apply` | Для `main` (prod) и `dev/develop` (dev) | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init` с backend key `${DEPLOY_ENV}/terraform.tfstate`; `terraform validate`; `terraform plan -out=tfplan`; `terraform apply -auto-approve tfplan`; сохранение артефактов | Инфраструктура создается/обновляется независимо для `dev` и `prod` |
+| `deploy` | `ansible_deploy` | Для `main` (prod) и `dev/develop` (dev), после `terraform_apply` (`needs`) | Образ `python:3.12-slim`; `pip install ansible`; переход в `ansible`; `ansible-playbook site.yml` с `--extra-vars`: `image=$IMAGE_TAG`, `registry_url=$CI_REGISTRY`, `registry_user=$CI_REGISTRY_USER`, `registry_password=$CI_REGISTRY_PASSWORD` | Попытка развернуть приложение и сопутствующие сервисы на подготовленной инфраструктуре |
+| `health_check` | `health_check` | Для `main` (prod) и `dev/develop` (dev), после `ansible_deploy` (`needs`) | Образ `curlimages/curl:latest`; проверки `curl -f https://$APP_DOMAIN/health` и `curl -f https://$APP_DOMAIN/` (с fallback на IP) | Подтверждение доступности приложения по HTTPS-домену, при неуспехе стадия падает |
+| `rollback` | `rollback` | Для `main` (prod) и `dev/develop` (dev), `when: on_failure` | Образ `python:3.12-slim`; установка `ansible`; переход в `ansible`; запуск `ansible-playbook site.yml` с `image=$PREVIOUS_IMAGE` и параметрами `registry_url`, `registry_user`, `registry_password` | Попытка отката на `previous-dev`/`previous-prod` (если тег существует) |
 
 
 
@@ -84,19 +84,18 @@ flowchart LR
 - `lint`: запуск `pre-commit` в CI.
 - `test`: запуск `pytest` в CI с сервисом `postgres:15`.
 - `build`: сборка и push образа через Kaniko.
-- `publish`: выставление тега `latest` для `main`.
-- `terraform`: запуск `terraform init/validate/plan/apply` для `main`.
+- `publish`: выставление тегов `latest-dev`/`latest-prod` и поддержка `previous-dev`/`previous-prod`.
+- `terraform`: запуск `terraform init/validate/plan/apply` для `dev/prod` с отдельным backend key (`dev/terraform.tfstate`, `prod/terraform.tfstate`).
 - `terraform_destroy`: ручное удаление инфраструктуры через `terraform destroy`.
 - `deploy`: Ansible-роль рендерит `.env`, `docker-compose.yml`, `Caddyfile`, подтягивает образ и поднимает стек.
 - `health_check`: проверяются endpoint `/health` и главная страница через HTTPS по домену (с fallback на IP).
-- `rollback`: сохраняется предыдущий `latest` в теге `previous`, выполняется откат при падении.
+- `rollback`: сохраняется предыдущий `latest-$DEPLOY_ENV` в теге `previous-$DEPLOY_ENV`, выполняется откат при падении.
 
 ### Частично реализовано / с критическими ограничениями
 - `rollback`:
-  - хранится только один предыдущий тег (`previous`), поэтому первый деплой откатывать некуда.
+  - хранится только один предыдущий тег на окружение (`previous-<env>`), поэтому первый деплой откатывать некуда.
 
 ### Отсутствует
-- Отдельные deploy-контуры `dev/prod`.
 - Стадия/механизм `notify` (Slack/Telegram/email/webhook уведомления из CI не реализованы).
 - История стабильных тегов глубже одного шага.
 
@@ -119,13 +118,13 @@ flowchart LR
 ## 6. Текущие ограничения
 
 - Для `MANAGE_DNS=true` требуется делегирование NS у регистратора на DNS-зону из Yandex Cloud, иначе ACME challenge для TLS не пройдет.
-- Откат ограничен одним тегом `previous`; на первом деплое откатывать некуда.
+- Откат ограничен одним тегом `previous-<env>`; на первом деплое окружения откатывать некуда.
 - Полное удаление инфраструктуры не выполняется автоматически; для этого предусмотрен ручной job `terraform_destroy`.
 - Для production обязательны секреты в CI/CD (`DJANGO_SECRET_KEY`, `DB_PASSWORD`, registry credentials).
 - Чувствительные значения не должны храниться в git: используйте GitLab CI/CD Variables (masked/protected) и локальные секреты вне репозитория.
 - Если секреты ранее попадали в историю git, их нужно ротировать (ключи/пароли/токены) и считать скомпрометированными.
 - В репозитории отсутствуют CI-уведомления (`notify`), webhooks как часть пайплайна не настроены.
-- Отдельные deploy-контуры `dev/prod` не реализованы (только `main` branch).
+- Для `dev/prod` нужно настроить environment-scoped переменные в GitLab (`APP_DOMAIN`, `DJANGO_SECRET_KEY`, `DB_PASSWORD` и т.д.), иначе окружения будут использовать fallback-значения.
 
 ## 7. Статус проекта
 
@@ -146,7 +145,7 @@ flowchart LR
 ## 8. Тестирование
 
 Фактически присутствуют:
-- 10 test-файлов (`users` + `tests/test_merge_production_dotenvs_in_dotenv.py` + `tests/test_health_endpoint.py`).
+- 7 test-файлов (`users` + `tests/test_merge_production_dotenvs_in_dotenv.py` + `tests/test_health_endpoint.py`).
 
 Особенности:
 - Миграция `contrib/sites` использует PostgreSQL sequence (`django_site_id_seq`), из-за чего тесты не совместимы с SQLite.
@@ -180,14 +179,14 @@ uv run python manage.py runserver
 - **CI Pipeline:** lint → test → build → publish (полностью автоматизировано)
 - **Terraform IaC:** VPC, subnets (public/private), NAT Gateway, security groups, VM (app/db/monitoring), DNS-зона
 - **Ansible деплой:** idempotent-роли для app, db, monitoring; авто-определение docker-compose команды
-- **Image Tagging:** commit SHA + latest + previous (для rollback)
+- **Image Tagging:** commit SHA + `latest-dev/latest-prod` + `previous-dev/previous-prod` (для rollback)
 - **Health-check:** HTTPS проверка /health и главной страницы с fallback на IP
-- **Rollback:** автоматический откат к previous tag при провале health_check
+- **Rollback:** автоматический откат к `previous-<env>` при провале health_check
 - **Terraform destroy:** ручное удаление инфраструктуры
-- **S3 Backend:** состояние Terraform в Yandex Object Storage с lock
+- **S3 Backend:** состояние Terraform в Yandex Object Storage с разделением state по ключам `dev/terraform.tfstate` и `prod/terraform.tfstate`
 - **Security Groups:** минимальные ingress правила (HTTP/HTTPS/SSH/Postgres)
 - **Сеть:** разделение на public/private subnet, NAT Gateway для private subnet
-- **Тестирование:** pytest (10 тестов), PostgreSQL service в CI
+- **Тестирование:** pytest (7 test-файлов), PostgreSQL service в CI
 
 ### Позиционирование для ВКР
 **Оценка соответствия целям ВКР: 9/10**
@@ -202,7 +201,7 @@ uv run python manage.py runserver
 | Infrastructure as Code (Terraform) | ✅ Реализовано |
 | Configuration Management (Ansible) | ✅ Реализовано |
 | Health-check перед переключением | ✅ Реализовано |
-| Разделение сред (dev/prod) | ⚠️ Только main (декларируется) |
+| Разделение сред (dev/prod) | ✅ Реализовано через branch-based rules |
 | Monitoring (Grafana/Prometheus) | ✅ Развёрнуто на Monitoring VM |
 | Security (Security Groups, private subnet) | ✅ Реализовано |
 | Terraform state в S3 | ✅ Реализовано |
@@ -231,7 +230,7 @@ uv run python manage.py runserver
 │              └────────────┬────────────┘                        │
 │                           │                                     │
 │         ┌─────────────────┴─────────────────┐                   │
-│         │        VPC Network (main)         │                   │
+│         │       VPC Network (<env>)         │                   │
 │         │  ┌──────────┐  ┌──────────┐      │                   │
 │         │  │  public  │  │ private  │      │                   │
 │         │  │  subnet  │  │  subnet  │      │                   │
@@ -284,6 +283,7 @@ flowchart TD
 - ✅ Приложение доступно по HTTPS: **https://app.dedapp.ru**
 - ✅ Полностью автоматический TLS через Caddy + Let's Encrypt
 - ✅ Rollback через previous tag реализован и протестирован
+- ✅ Добавлено разделение `dev/prod` (branch rules + отдельные terraform state + env-specific image tags)
 
 ### Новые переменные Terraform
 
@@ -291,6 +291,7 @@ flowchart TD
 - `manage_dns` - `true/false`, управлять ли DNS-зоной и A-записью через Terraform
 - `dns_zone` - базовая зона, например `example.com`
 - `dns_zone_resource_name` - имя ресурса DNS-зоны в Yandex Cloud
+- `environment` - имя окружения (`dev`/`prod`) для префиксов ресурсов
 
 ### Важные CI/CD переменные GitLab
 
@@ -302,6 +303,10 @@ flowchart TD
 - `DJANGO_ADMIN_URL` - URL админки (например `admin/`)
 - `DB_USER`, `DB_PASSWORD`, `DB_NAME` - параметры БД
 - `TLS_ACME_EMAIL` - email для Let's Encrypt
+
+Переменная `DEPLOY_ENV` вычисляется из ветки:
+- `main` -> `prod`
+- `dev`/`develop` -> `dev`
 
 ### DNS делегирование
 

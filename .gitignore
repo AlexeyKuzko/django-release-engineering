@@ -319,3 +319,5 @@ dump.rdb
 django_educational_demo_application/media/
 
 .pytest_cache/
+/infra/.terraform.lock.hcl
+/infra/.terraform/*

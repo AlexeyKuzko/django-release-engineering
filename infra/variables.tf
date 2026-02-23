@@ -1,5 +1,12 @@
 variable "cloud_id" {}
 variable "folder_id" {}
+
+variable "environment" {
+  description = "Deployment environment name (for example: dev or prod)."
+  type        = string
+  default     = "prod"
+}
+
 variable "service_account_key_file" {
   description = "Path to service account key JSON file."
   type        = string

@@ -1,15 +1,15 @@
 resource "yandex_vpc_network" "main" {
-  name = "diploma-network"
+  name = "${local.resource_prefix}-network"
 }
 
 resource "yandex_vpc_gateway" "nat" {
-  name = "nat-gateway"
+  name = "${local.resource_prefix}-nat-gateway"
 
   shared_egress_gateway {}
 }
 
 resource "yandex_vpc_route_table" "private" {
-  name       = "private-rt"
+  name       = "${local.resource_prefix}-private-rt"
   network_id = yandex_vpc_network.main.id
 
   static_route {
@@ -19,14 +19,14 @@ resource "yandex_vpc_route_table" "private" {
 }
 
 resource "yandex_vpc_subnet" "public" {
-  name           = "public-subnet"
+  name           = "${local.resource_prefix}-public-subnet"
   zone           = var.zone
   network_id     = yandex_vpc_network.main.id
   v4_cidr_blocks = [var.public_cidr]
 }
 
 resource "yandex_vpc_subnet" "private" {
-  name           = "private-subnet"
+  name           = "${local.resource_prefix}-private-subnet"
   zone           = var.zone
   network_id     = yandex_vpc_network.main.id
   route_table_id = yandex_vpc_route_table.private.id
@@ -34,7 +34,7 @@ resource "yandex_vpc_subnet" "private" {
 }
 
 resource "yandex_vpc_address" "app_public_ip" {
-  name = "app-public-ip"
+  name = "${local.resource_prefix}-app-public-ip"
 
   external_ipv4_address {
     zone_id = var.zone

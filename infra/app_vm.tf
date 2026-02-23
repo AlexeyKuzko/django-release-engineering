@@ -1,5 +1,5 @@
 resource "yandex_compute_instance" "app" {
-  name        = "app-vm"
+  name        = "${local.resource_prefix}-app-vm"
   platform_id = "standard-v3"
 
   resources {
