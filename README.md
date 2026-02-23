@@ -42,15 +42,21 @@ This is a demo project that demonstrates the use of Django, Docker, and GitLab C
 ### Общая схема пайплайна:
 
 ```mermaid
-flowchart LR
-  A["lint"] --> B["test"]
-  B --> C["build"]
-  C --> D["publish"]
-  D --> E["terraform_apply"]
-  E --> F["deploy"]
-  F --> G["health_check"]
-  G --> H["rollback"]
-  E -. manual .-> X["terraform_destroy"]
+flowchart TD
+    A[lint] --> B[test]
+    B --> C[build]
+    C --> D[publish]
+    D --> E[terraform_apply]
+    E --> F[ansible_deploy]
+    F --> G[health_check]
+    G --> H[Success]
+    G -->|on_failure| I[rollback]
+    I --> J[Rolled back]
+    E -. manual .-> K[terraform_destroy]
+
+    style H fill:#4ade80
+    style J fill:#4ade80
+    style I fill:#fbbf24
 ```
 ### Назначение этапов (stage) пайплайна:
 - `lint` - запуск pre-commit-hooks, django-upgrade, ruff, djLint
@@ -125,7 +131,6 @@ flowchart LR
 - Если секреты ранее попадали в историю git, их нужно ротировать (ключи/пароли/токены) и считать скомпрометированными.
 - В репозитории отсутствуют CI-уведомления (`notify`), webhooks как часть пайплайна не настроены.
 - Для `dev/prod` нужно настроить environment-scoped переменные в GitLab (`APP_DOMAIN`, `DJANGO_SECRET_KEY`, `DB_PASSWORD` и т.д.), иначе окружения будут использовать fallback-значения.
-- Первый `dev`-деплой после включения shared network требует актуального `prod` state (запустить `terraform_apply` на `main` с текущим кодом, чтобы в state появились outputs сети/подсетей).
 
 ## 7. Статус проекта
 
@@ -173,6 +178,13 @@ uv run python manage.py runserver
 - Caddy автоматически получает/обновляет TLS-сертификат Let's Encrypt для домена.
 - `health_check` проверяет `https://<APP_DOMAIN>/health`.
 - Полное удаление инфраструктуры выполняется вручную через job `terraform_destroy`.
+
+### Архитектурная модель dev/prod (shared network)
+
+- `prod` выступает как network baseline и хранит source of truth для VPC/subnets/NAT в Terraform state.
+- `dev` переиспользует эту сеть через remote state и разворачивает свои собственные VM, security groups, DNS и публичные IP.
+- Такой подход уменьшает расход квот (`vpc.networks.count`), ускоряет создание dev-среды и сохраняет единый сетевой периметр для обеих сред.
+- Рекомендуемый порядок первичного запуска: сначала `terraform_apply` на `main`, затем `terraform_apply` на `dev`/`develop`.
 
 ## 11. Текущий статус проекта (Production-Ready)
 
@@ -257,26 +269,6 @@ uv run python manage.py runserver
                     │ →terraform→   │
                     │ deploy→check  │
                     └───────────────┘
-```
-
-### Pipeline Diagram
-
-```mermaid
-flowchart TD
-    A[lint] --> B[test]
-    B --> C[build]
-    C --> D[publish]
-    D --> E[terraform_apply]
-    E --> F[ansible_deploy]
-    F --> G[health_check]
-    G --> H[✅ Success]
-    G -->|on_failure| I[rollback]
-    I --> J[✅ Rolled back]
-    E -. manual .-> K[terraform_destroy]
-
-    style H fill:#4ade80
-    style J fill:#4ade80
-    style I fill:#fbbf24
 ```
 
 ### Что было улучшено (2026)
