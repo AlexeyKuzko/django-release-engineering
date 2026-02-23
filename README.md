@@ -43,8 +43,8 @@ This is a demo project that demonstrates the use of Django, Docker, and GitLab C
 
 ```mermaid
 flowchart TD
-    A[lint] --> B[test]
-    B --> C[build]
+    A[test: run_linters] --> C[build]
+    B[test: run_pytest] --> C
     C --> D[publish]
     D --> E[terraform_apply]
     E --> F[ansible_deploy]
@@ -61,8 +61,7 @@ flowchart TD
     style I fill:#fbbf24
 ```
 ### Назначение этапов (stage) пайплайна:
-- `lint` - запуск pre-commit-hooks, django-upgrade, ruff, djLint
-- `test` - запуск pytest
+- `test` - параллельный запуск `run_linters` (pre-commit-hooks, django-upgrade, ruff, djLint) и `run_pytest` (pytest)
 - `build` - сборка Docker-образа приложения и push в Container Registry с тегом commit SHA
 - `publish` - публикация тегированного образа в GitLab Container Registry
 - `terraform` - создание инфраструктуры для деплоя (Terraform apply) и ручное удаление (Terraform destroy)
@@ -76,9 +75,9 @@ flowchart TD
 
 | Stage | Job | Когда запускается                                            | Что выполняется | Результат |
 |---|---|--------------------------------------------------------------|---|---|
-| `lint` | `linter_check` | При каждом push в репозиторий                                | Образ `python:3.13-slim`; установка `git`, `build-essential`, `libpq-dev`, `uv`; `uv venv`; `uv sync --locked`; `uv run pre-commit run --show-diff-on-failure --color=always --all-files` | Проверка качества кода, при ошибке пайплайн останавливается |
-| `test` | `test_pytest` | После `lint`                                                 | Образ `ghcr.io/astral-sh/uv:python3.13-bookworm`; сервис `postgres:15`; настройка `DATABASE_URL`; установка `build-essential`, `libpq-dev`; `uv sync --locked`; `uv run pytest` | Проверка корректности тестами, при падении тестов дальнейшие стадии не запускаются |
-| `build` | `build_image` | После `test`                                                 | Сборка через Kaniko: создание `/kaniko/.docker/config.json`; запуск `/kaniko/executor` с `--context "$CI_PROJECT_DIR"`, `--dockerfile "$CI_PROJECT_DIR/Dockerfile"`, `--destination "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"` (`IMAGE_TAG`), `--cache=true` | Docker-образ собирается и сразу пушится в GitLab Container Registry с тегом коммита |
+| `test` | `run_linters` | При каждом push в репозиторий, параллельно с `run_pytest` | Образ `ghcr.io/astral-sh/uv:python3.13-bookworm`; установка `git`; запуск `uv tool run pre-commit==4.5.1 run --show-diff-on-failure --color=always --all-files` | Проверка качества кода, при ошибке пайплайн останавливается |
+| `test` | `run_pytest` | При каждом push в репозиторий, параллельно с `run_linters` | Образ `ghcr.io/astral-sh/uv:python3.13-bookworm`; сервис `postgres:15`; настройка `DATABASE_URL`; установка `build-essential`, `libpq-dev`; `uv sync --locked`; `uv run pytest` | Проверка корректности тестами, при падении тестов дальнейшие стадии не запускаются |
+| `build` | `build_image` | После успешного завершения `run_linters` и `run_pytest` (`needs`) | Сборка через Kaniko: создание `/kaniko/.docker/config.json`; запуск `/kaniko/executor` с `--context "$CI_PROJECT_DIR"`, `--dockerfile "$CI_PROJECT_DIR/Dockerfile"`, `--destination "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"` (`IMAGE_TAG`), `--cache=true` | Docker-образ собирается и сразу пушится в GitLab Container Registry с тегом коммита |
 | `publish` | `publish_latest` | Для `main` (prod) и `dev/develop` (dev), после `build_image` (`needs`) | Образ `gcr.io/go-containerregistry/crane:debug`; `crane auth login` в `$CI_REGISTRY`; если `latest-$DEPLOY_ENV` существует — `crane tag ... previous-$DEPLOY_ENV`, затем `crane tag $IMAGE_TAG latest-$DEPLOY_ENV` | Образ с тегом коммита получает `latest-dev`/`latest-prod`, предыдущий хранится как `previous-dev`/`previous-prod` |
 | `terraform` | `terraform_destroy` | Для `main` (prod) и `dev/develop` (dev), вручную (`when: manual`) | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init` с backend key `${DEPLOY_ENV}/terraform.tfstate`; `terraform destroy -auto-approve` | Полное удаление инфраструктуры по выбранному окружению |
 | `terraform` | `terraform_apply` | Для `main` (prod) и `dev/develop` (dev) | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init` с backend key `${DEPLOY_ENV}/terraform.tfstate`; `terraform validate`; `terraform plan -out=tfplan`; `terraform apply -auto-approve tfplan`; сохранение артефактов | `prod` управляет полной сетью (VPC/subnets/NAT), `dev` переиспользует `prod` VPC/subnets из remote state и разворачивает собственные VM/SG/DNS |
@@ -91,8 +90,7 @@ flowchart TD
 
 ## 4. Что реально работает и что частично
 ### Реализовано
-- `lint`: запуск `pre-commit` в CI.
-- `test`: запуск `pytest` в CI с сервисом `postgres:15`.
+- `test`: параллельный запуск `run_linters` (pre-commit) и `run_pytest` (pytest + PostgreSQL service).
 - `build`: сборка и push образа через Kaniko.
 - `publish`: выставление тегов `latest-dev`/`latest-prod` и поддержка `previous-dev`/`previous-prod`.
 - `terraform`: запуск `terraform init/validate/plan/apply` для `dev/prod` с отдельным backend key (`dev/terraform.tfstate`, `prod/terraform.tfstate`); `dev` использует shared VPC/subnets из `prod`.
@@ -116,7 +114,7 @@ flowchart TD
 Оценка соответствия по фактическому состоянию: **9/10** (Готово к защите)
 
 Декомпозиция:
-- Автоматизация CI (lint/test/build/publish): ✅ Реализовано
+- Автоматизация CI (`run_linters` + `run_pytest` + build/publish): ✅ Реализовано
 - Автоматизация IaC (terraform) и деплоя (ansible): ✅ Реализовано
 - Надёжность (health-check, rollback): ✅ Реализовано
 - Воспроизводимость production-деплоя: ✅ Реализовано
@@ -145,7 +143,7 @@ flowchart TD
 **Статус для ВКР:** Готово к защите (9/10)
 
 Проект полностью реализует заявленные цели:
-- Автоматизированный CI/CD pipeline (lint/test/build/publish/deploy/notify)
+- Автоматизированный CI/CD pipeline (test/build/publish/deploy/notify)
 - Infrastructure as Code (Terraform)
 - Configuration Management (Ansible)
 - Health-check и автоматический rollback
@@ -194,7 +192,7 @@ uv run python manage.py runserver
 ## 11. Текущий статус проекта (Production-Ready)
 
 ### Реализовано полностью ✅
-- **CI Pipeline:** lint → test → build → publish → deploy → health_check → rollback/notify (полностью автоматизировано)
+- **CI Pipeline:** test (`run_linters` + `run_pytest`, параллельно) → build → publish → deploy → health_check → rollback/notify (полностью автоматизировано)
 - **Terraform IaC:** VPC, subnets (public/private), NAT Gateway, security groups, VM (app/db/monitoring), DNS-зона
 - **Ansible деплой:** idempotent-роли для app, db, monitoring; авто-определение docker-compose команды
 - **Image Tagging:** commit SHA + `latest-dev/latest-prod` + `previous-dev/previous-prod` (для rollback)
@@ -270,7 +268,7 @@ uv run python manage.py runserver
                     │   GitLab CI   │
                     │   Pipeline    │
                     │               │
-                    │ lint→test→    │
+                    │ test→         │
                     │ build→publish │
                     │ →terraform→   │
                     │ deploy→check  │

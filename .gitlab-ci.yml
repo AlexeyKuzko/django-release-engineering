@@ -1,5 +1,4 @@
 stages:
-  - lint
   - test
   - build
   - publish
@@ -50,8 +49,8 @@ variables:
   - when: never
 
 # Run linters: pre-commit-hooks, django-upgrade, ruff, djLint
-linter_check:
-  stage: lint
+run_linters:
+  stage: test
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
   variables:
     UV_CACHE_DIR: $CI_PROJECT_DIR/.cache/uv
@@ -71,11 +70,9 @@ linter_check:
     - uv tool run pre-commit==4.5.1 run --show-diff-on-failure --color=always --all-files
 
 # Run pytest
-test_pytest:
+run_pytest:
   stage: test
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
-  needs:
-    - job: linter_check
   services:
     - postgres:15
   variables:
@@ -93,7 +90,8 @@ build_image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   needs:
-    - job: test_pytest
+    - job: run_linters
+    - job: run_pytest
   script:
     - mkdir -p /kaniko/.docker
     - |
