@@ -197,6 +197,7 @@ uv run python manage.py runserver
 - **Rollback:** автоматический откат к `previous-<env>` при провале health_check
 - **Terraform destroy:** ручное удаление инфраструктуры
 - **S3 Backend:** состояние Terraform в Yandex Object Storage с разделением state по ключам `dev/terraform.tfstate` и `prod/terraform.tfstate`
+- **Public IP strategy:** статический публичный IP назначается только `app` (по одному на `dev` и `prod`), `monitoring` всегда использует динамический публичный IP
 - **Security Groups:** минимальные ingress правила (HTTP/HTTPS/SSH/Postgres)
 - **Сеть:** `prod` управляет VPC/subnets/NAT, `dev` переиспользует `prod` VPC/subnets (избегает квоты `vpc.networks.count`)
 - **Тестирование:** pytest (7 test-файлов), PostgreSQL service в CI

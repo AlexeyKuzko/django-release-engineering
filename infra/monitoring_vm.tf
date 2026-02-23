@@ -15,8 +15,10 @@ resource "yandex_compute_instance" "monitoring" {
   }
 
   network_interface {
-    subnet_id          = local.public_subnet_id
-    nat                = true
+    subnet_id = local.public_subnet_id
+    nat       = true
+    # Monitoring always uses a dynamic public IP to preserve static IP quota for app.
+    nat_ip_address     = null
     security_group_ids = [yandex_vpc_security_group.monitoring_sg.id]
   }
 

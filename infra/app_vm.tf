@@ -15,8 +15,9 @@ resource "yandex_compute_instance" "app" {
   }
 
   network_interface {
-    subnet_id          = local.public_subnet_id
-    nat                = true
+    subnet_id = local.public_subnet_id
+    nat       = true
+    # App keeps a static public IP per environment (dev/prod).
     nat_ip_address     = yandex_vpc_address.app_public_ip.external_ipv4_address[0].address
     security_group_ids = [yandex_vpc_security_group.app_sg.id]
   }
