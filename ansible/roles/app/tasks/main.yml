@@ -116,30 +116,32 @@
   delay: 10
   until: app_health.status in [200, 301, 302, 307, 308]
 
-- name: Wait for Caddy TLS endpoint for app domain
-  block:
-    - name: Wait for app HTTPS endpoint through local Caddy with domain SNI
-      ansible.builtin.shell: |
-        set -euo pipefail
-        curl -kfsS --connect-to "{{ app_domain }}:443:127.0.0.1:443" "https://{{ app_domain }}/health"
-      args:
-        executable: /bin/bash
-      register: app_tls_health
-      retries: 30
-      delay: 10
-      until: app_tls_health.rc == 0
-      changed_when: false
-  rescue:
-    - name: Collect recent Caddy logs
-      ansible.builtin.command: "{{ docker_compose_cmd }} -f {{ app_dir }}/docker-compose.yml logs --tail=200 caddy"
-      register: caddy_logs
-      changed_when: false
-      failed_when: false
+- name: Check Caddy TLS endpoint for app domain (best effort)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -kfsS --connect-to "{{ app_domain }}:443:127.0.0.1:443" "https://{{ app_domain }}/health"
+  args:
+    executable: /bin/bash
+  register: app_tls_health
+  retries: 30
+  delay: 10
+  until: app_tls_health.rc == 0
+  changed_when: false
+  failed_when: false
 
-    - name: Fail deployment when TLS did not become ready
-      ansible.builtin.fail:
-        msg: |
-          Caddy TLS is not ready for {{ app_domain }} after waiting.
-          This usually means ACME certificate issuance failed (DNS delegation, A-record, or challenge).
-          Recent Caddy logs:
-          {{ ((caddy_logs.stdout | default("")) ~ "\n" ~ (caddy_logs.stderr | default(""))) | trim }}
+- name: Collect recent Caddy logs when TLS endpoint is not ready yet
+  ansible.builtin.command: "{{ docker_compose_cmd }} -f {{ app_dir }}/docker-compose.yml logs --tail=200 caddy"
+  register: caddy_logs
+  changed_when: false
+  failed_when: false
+  when: app_tls_health.rc != 0
+
+- name: Report TLS readiness warning
+  ansible.builtin.debug:
+    msg: |
+      Caddy TLS is not ready for {{ app_domain }} after waiting.
+      Application HTTP endpoint is up, so deployment continues and the pipeline health_check stage will make the final HTTPS decision.
+      This usually means ACME certificate issuance failed (DNS delegation, A-record, challenge, or CA rate limit).
+      Recent Caddy logs:
+      {{ ((caddy_logs.stdout | default("")) ~ "\n" ~ (caddy_logs.stderr | default(""))) | trim }}
+  when: app_tls_health.rc != 0

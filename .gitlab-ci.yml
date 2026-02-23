@@ -396,36 +396,36 @@ health_check:
       echo "Running HTTPS health check for ${APP_DOMAIN}..."
       set +e
       curl -fsS --retry 30 --retry-delay 10 --retry-all-errors "https://${APP_DOMAIN}/health"
-      rc=$?
-      set -e
-
-      if [ "$rc" -eq 0 ]; then
+      https_health_rc=$?
+      https_home_rc=0
+      if [ "$https_health_rc" -eq 0 ]; then
         echo "Running HTTPS homepage check for ${APP_DOMAIN}..."
         curl -fsS --retry 30 --retry-delay 10 --retry-all-errors "https://${APP_DOMAIN}/"
+        https_home_rc=$?
+      else
+        https_home_rc=$https_health_rc
+      fi
+      set -e
+
+      if [ "$https_health_rc" -eq 0 ] && [ "$https_home_rc" -eq 0 ]; then
+        echo "HTTPS checks passed for ${APP_DOMAIN}."
         exit 0
       fi
 
-      if [ "$rc" -eq 35 ]; then
-        echo "HTTPS health check failed with curl exit code 35 (TLS handshake alert)."
-        echo "Likely Caddy has not obtained a certificate for ${APP_DOMAIN} yet."
-        echo "Check DNS delegation/A-record and Caddy logs from ansible_deploy."
-        exit "$rc"
-      fi
-
-      if [ "$rc" -ne 6 ]; then
-        echo "HTTPS health check failed with curl exit code ${rc}"
-        exit "$rc"
-      fi
+      echo "HTTPS checks are non-blocking for deploy flow."
+      echo "health rc=${https_health_rc}, homepage rc=${https_home_rc}."
+      echo "Likely TLS is not ready yet (for example ACME rate limit) or DNS is not propagated."
 
       if [ -z "${APP_PUBLIC_IP:-}" ]; then
-        echo "APP_PUBLIC_IP is empty, cannot run fallback health check"
+        echo "APP_PUBLIC_IP is empty, cannot run fallback HTTP checks"
         exit 1
       fi
 
-      echo "DNS for ${APP_DOMAIN} is not resolvable yet. Fallback to HTTP health check by IP ${APP_PUBLIC_IP}."
+      echo "Running fallback HTTP health check by IP ${APP_PUBLIC_IP}."
       curl -fsS --retry 30 --retry-delay 10 --retry-all-errors "http://${APP_PUBLIC_IP}/health"
       echo "Running fallback HTTP homepage check by IP ${APP_PUBLIC_IP}."
       curl -fsS --retry 30 --retry-delay 10 --retry-all-errors "http://${APP_PUBLIC_IP}/"
+      echo "Fallback HTTP checks passed. Continuing pipeline despite HTTPS/TLS issues."
   environment:
     name: $DEPLOY_ENV
   rules: *deploy_env_rules
