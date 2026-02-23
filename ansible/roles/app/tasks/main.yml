@@ -13,7 +13,7 @@
   changed_when: false
   failed_when: false
 
-- name: Select docker compose package and command
+- name: Select docker compose package
   ansible.builtin.set_fact:
     docker_compose_pkg: >-
       {{
@@ -23,8 +23,11 @@
           | map(attribute='item')
           | list
           | first
-        ) | default('docker-compose')
+        ) | default('docker-compose-v2')
       }}
+
+- name: Set docker compose command based on package
+  ansible.builtin.set_fact:
     docker_compose_cmd: "{{ 'docker compose' if docker_compose_pkg in ['docker-compose-v2', 'docker-compose-plugin'] else 'docker-compose' }}"
 
 - name: Install runtime packages
