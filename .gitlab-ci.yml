@@ -220,6 +220,7 @@ terraform_apply:
     - MONITORING_PUBLIC_IP="$(terraform output -raw monitoring_public_ip)"
     - DB_PRIVATE_IP="$(terraform output -raw db_private_ip)"
     - APP_DOMAIN="$(terraform output -raw app_domain)"
+    - APP_SUBNET_CIDR="$(terraform output -raw public_subnet_cidr)"
     - |
       cat > ../ansible/inventory/hosts.generated.ini <<EOF
       [app]
@@ -241,6 +242,7 @@ terraform_apply:
       MONITORING_PUBLIC_IP=${MONITORING_PUBLIC_IP}
       DB_PRIVATE_IP=${DB_PRIVATE_IP}
       APP_DOMAIN=${APP_DOMAIN}
+      APP_SUBNET_CIDR=${APP_SUBNET_CIDR}
       EOF
   artifacts:
     reports:

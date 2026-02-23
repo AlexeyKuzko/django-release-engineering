@@ -72,7 +72,7 @@ flowchart LR
 | `build` | `build_image` | После `test`                                                 | Сборка через Kaniko: создание `/kaniko/.docker/config.json`; запуск `/kaniko/executor` с `--context "$CI_PROJECT_DIR"`, `--dockerfile "$CI_PROJECT_DIR/Dockerfile"`, `--destination "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"` (`IMAGE_TAG`), `--cache=true` | Docker-образ собирается и сразу пушится в GitLab Container Registry с тегом коммита |
 | `publish` | `publish_latest` | Для `main` (prod) и `dev/develop` (dev), после `build_image` (`needs`) | Образ `gcr.io/go-containerregistry/crane:debug`; `crane auth login` в `$CI_REGISTRY`; если `latest-$DEPLOY_ENV` существует — `crane tag ... previous-$DEPLOY_ENV`, затем `crane tag $IMAGE_TAG latest-$DEPLOY_ENV` | Образ с тегом коммита получает `latest-dev`/`latest-prod`, предыдущий хранится как `previous-dev`/`previous-prod` |
 | `terraform` | `terraform_destroy` | Для `main` (prod) и `dev/develop` (dev), вручную (`when: manual`) | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init` с backend key `${DEPLOY_ENV}/terraform.tfstate`; `terraform destroy -auto-approve` | Полное удаление инфраструктуры по выбранному окружению |
-| `terraform` | `terraform_apply` | Для `main` (prod) и `dev/develop` (dev) | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init` с backend key `${DEPLOY_ENV}/terraform.tfstate`; `terraform validate`; `terraform plan -out=tfplan`; `terraform apply -auto-approve tfplan`; сохранение артефактов | Инфраструктура создается/обновляется независимо для `dev` и `prod` |
+| `terraform` | `terraform_apply` | Для `main` (prod) и `dev/develop` (dev) | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init` с backend key `${DEPLOY_ENV}/terraform.tfstate`; `terraform validate`; `terraform plan -out=tfplan`; `terraform apply -auto-approve tfplan`; сохранение артефактов | `prod` управляет полной сетью (VPC/subnets/NAT), `dev` переиспользует `prod` VPC/subnets из remote state и разворачивает собственные VM/SG/DNS |
 | `deploy` | `ansible_deploy` | Для `main` (prod) и `dev/develop` (dev), после `terraform_apply` (`needs`) | Образ `python:3.12-slim`; `pip install ansible`; переход в `ansible`; `ansible-playbook site.yml` с `--extra-vars`: `image=$IMAGE_TAG`, `registry_url=$CI_REGISTRY`, `registry_user=$CI_REGISTRY_USER`, `registry_password=$CI_REGISTRY_PASSWORD` | Попытка развернуть приложение и сопутствующие сервисы на подготовленной инфраструктуре |
 | `health_check` | `health_check` | Для `main` (prod) и `dev/develop` (dev), после `ansible_deploy` (`needs`) | Образ `curlimages/curl:latest`; проверки `curl -f https://$APP_DOMAIN/health` и `curl -f https://$APP_DOMAIN/` (с fallback на IP) | Подтверждение доступности приложения по HTTPS-домену, при неуспехе стадия падает |
 | `rollback` | `rollback` | Для `main` (prod) и `dev/develop` (dev), `when: on_failure` | Образ `python:3.12-slim`; установка `ansible`; переход в `ansible`; запуск `ansible-playbook site.yml` с `image=$PREVIOUS_IMAGE` и параметрами `registry_url`, `registry_user`, `registry_password` | Попытка отката на `previous-dev`/`previous-prod` (если тег существует) |
@@ -85,7 +85,7 @@ flowchart LR
 - `test`: запуск `pytest` в CI с сервисом `postgres:15`.
 - `build`: сборка и push образа через Kaniko.
 - `publish`: выставление тегов `latest-dev`/`latest-prod` и поддержка `previous-dev`/`previous-prod`.
-- `terraform`: запуск `terraform init/validate/plan/apply` для `dev/prod` с отдельным backend key (`dev/terraform.tfstate`, `prod/terraform.tfstate`).
+- `terraform`: запуск `terraform init/validate/plan/apply` для `dev/prod` с отдельным backend key (`dev/terraform.tfstate`, `prod/terraform.tfstate`); `dev` использует shared VPC/subnets из `prod`.
 - `terraform_destroy`: ручное удаление инфраструктуры через `terraform destroy`.
 - `deploy`: Ansible-роль рендерит `.env`, `docker-compose.yml`, `Caddyfile`, подтягивает образ и поднимает стек.
 - `health_check`: проверяются endpoint `/health` и главная страница через HTTPS по домену (с fallback на IP).
@@ -125,6 +125,7 @@ flowchart LR
 - Если секреты ранее попадали в историю git, их нужно ротировать (ключи/пароли/токены) и считать скомпрометированными.
 - В репозитории отсутствуют CI-уведомления (`notify`), webhooks как часть пайплайна не настроены.
 - Для `dev/prod` нужно настроить environment-scoped переменные в GitLab (`APP_DOMAIN`, `DJANGO_SECRET_KEY`, `DB_PASSWORD` и т.д.), иначе окружения будут использовать fallback-значения.
+- Первый `dev`-деплой после включения shared network требует актуального `prod` state (запустить `terraform_apply` на `main` с текущим кодом, чтобы в state появились outputs сети/подсетей).
 
 ## 7. Статус проекта
 
@@ -185,7 +186,7 @@ uv run python manage.py runserver
 - **Terraform destroy:** ручное удаление инфраструктуры
 - **S3 Backend:** состояние Terraform в Yandex Object Storage с разделением state по ключам `dev/terraform.tfstate` и `prod/terraform.tfstate`
 - **Security Groups:** минимальные ingress правила (HTTP/HTTPS/SSH/Postgres)
-- **Сеть:** разделение на public/private subnet, NAT Gateway для private subnet
+- **Сеть:** `prod` управляет VPC/subnets/NAT, `dev` переиспользует `prod` VPC/subnets (избегает квоты `vpc.networks.count`)
 - **Тестирование:** pytest (7 test-файлов), PostgreSQL service в CI
 
 ### Позиционирование для ВКР
@@ -284,6 +285,7 @@ flowchart TD
 - ✅ Полностью автоматический TLS через Caddy + Let's Encrypt
 - ✅ Rollback через previous tag реализован и протестирован
 - ✅ Добавлено разделение `dev/prod` (branch rules + отдельные terraform state + env-specific image tags)
+- ✅ Для `dev` включено переиспользование `prod` VPC/subnets (обход лимита `vpc.networks.count`)
 
 ### Новые переменные Terraform
 

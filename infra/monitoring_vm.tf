@@ -15,7 +15,7 @@ resource "yandex_compute_instance" "monitoring" {
   }
 
   network_interface {
-    subnet_id          = yandex_vpc_subnet.public.id
+    subnet_id          = local.public_subnet_id
     nat                = true
     security_group_ids = [yandex_vpc_security_group.monitoring_sg.id]
   }

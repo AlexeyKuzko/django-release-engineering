@@ -15,7 +15,7 @@ resource "yandex_compute_instance" "db" {
   }
 
   network_interface {
-    subnet_id          = yandex_vpc_subnet.private.id
+    subnet_id          = local.private_subnet_id
     nat                = false
     security_group_ids = [yandex_vpc_security_group.db_sg.id]
   }

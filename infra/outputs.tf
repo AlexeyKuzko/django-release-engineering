@@ -1,3 +1,23 @@
+output "network_id" {
+  value = local.network_id
+}
+
+output "public_subnet_id" {
+  value = local.public_subnet_id
+}
+
+output "private_subnet_id" {
+  value = local.private_subnet_id
+}
+
+output "public_subnet_cidr" {
+  value = local.public_subnet_cidr
+}
+
+output "private_subnet_cidr" {
+  value = local.private_subnet_cidr
+}
+
 output "app_public_ip" {
   value = yandex_vpc_address.app_public_ip.external_ipv4_address[0].address
 }

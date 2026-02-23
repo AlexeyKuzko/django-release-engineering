@@ -1,35 +1,55 @@
+data "terraform_remote_state" "prod" {
+  count   = local.use_shared_network ? 1 : 0
+  backend = "s3"
+  config = {
+    endpoint = "https://storage.yandexcloud.net"
+    bucket   = "diploma-terraform-state"
+    region   = "ru-central1"
+    key      = "prod/terraform.tfstate"
+
+    skip_region_validation      = true
+    skip_credentials_validation = true
+    skip_metadata_api_check     = true
+  }
+}
+
 resource "yandex_vpc_network" "main" {
-  name = "${local.resource_prefix}-network"
+  count = local.use_shared_network ? 0 : 1
+  name  = "${local.resource_prefix}-network"
 }
 
 resource "yandex_vpc_gateway" "nat" {
-  name = "${local.resource_prefix}-nat-gateway"
+  count = local.use_shared_network ? 0 : 1
+  name  = "${local.resource_prefix}-nat-gateway"
 
   shared_egress_gateway {}
 }
 
 resource "yandex_vpc_route_table" "private" {
+  count      = local.use_shared_network ? 0 : 1
   name       = "${local.resource_prefix}-private-rt"
-  network_id = yandex_vpc_network.main.id
+  network_id = yandex_vpc_network.main[0].id
 
   static_route {
     destination_prefix = "0.0.0.0/0"
-    gateway_id         = yandex_vpc_gateway.nat.id
+    gateway_id         = yandex_vpc_gateway.nat[0].id
   }
 }
 
 resource "yandex_vpc_subnet" "public" {
+  count          = local.use_shared_network ? 0 : 1
   name           = "${local.resource_prefix}-public-subnet"
   zone           = var.zone
-  network_id     = yandex_vpc_network.main.id
+  network_id     = yandex_vpc_network.main[0].id
   v4_cidr_blocks = [var.public_cidr]
 }
 
 resource "yandex_vpc_subnet" "private" {
+  count          = local.use_shared_network ? 0 : 1
   name           = "${local.resource_prefix}-private-subnet"
   zone           = var.zone
-  network_id     = yandex_vpc_network.main.id
-  route_table_id = yandex_vpc_route_table.private.id
+  network_id     = yandex_vpc_network.main[0].id
+  route_table_id = yandex_vpc_route_table.private[0].id
   v4_cidr_blocks = [var.private_cidr]
 }
 
@@ -39,4 +59,16 @@ resource "yandex_vpc_address" "app_public_ip" {
   external_ipv4_address {
     zone_id = var.zone
   }
+}
+
+locals {
+  network_id = local.use_shared_network ? data.terraform_remote_state.prod[0].outputs.network_id : yandex_vpc_network.main[0].id
+
+  public_subnet_id = local.use_shared_network ? data.terraform_remote_state.prod[0].outputs.public_subnet_id : yandex_vpc_subnet.public[0].id
+
+  private_subnet_id = local.use_shared_network ? data.terraform_remote_state.prod[0].outputs.private_subnet_id : yandex_vpc_subnet.private[0].id
+
+  public_subnet_cidr = local.use_shared_network ? data.terraform_remote_state.prod[0].outputs.public_subnet_cidr : var.public_cidr
+
+  private_subnet_cidr = local.use_shared_network ? data.terraform_remote_state.prod[0].outputs.private_subnet_cidr : var.private_cidr
 }

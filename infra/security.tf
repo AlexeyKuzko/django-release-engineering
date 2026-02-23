@@ -1,6 +1,6 @@
 resource "yandex_vpc_security_group" "app_sg" {
   name       = "${local.resource_prefix}-app-sg"
-  network_id = yandex_vpc_network.main.id
+  network_id = local.network_id
 
   ingress {
     protocol       = "TCP"
@@ -31,7 +31,7 @@ resource "yandex_vpc_security_group" "app_sg" {
 
 resource "yandex_vpc_security_group" "db_sg" {
   name       = "${local.resource_prefix}-db-sg"
-  network_id = yandex_vpc_network.main.id
+  network_id = local.network_id
 
   ingress {
     protocol          = "TCP"
@@ -44,7 +44,7 @@ resource "yandex_vpc_security_group" "db_sg" {
     protocol       = "TCP"
     description    = "SSH from App subnet"
     port           = 22
-    v4_cidr_blocks = [var.public_cidr]
+    v4_cidr_blocks = [local.public_subnet_cidr]
   }
 
   ingress {
@@ -58,7 +58,7 @@ resource "yandex_vpc_security_group" "db_sg" {
     protocol       = "TCP"
     description    = "Postgres from App subnet"
     port           = 5432
-    v4_cidr_blocks = [var.public_cidr]
+    v4_cidr_blocks = [local.public_subnet_cidr]
   }
 
   egress {
@@ -69,7 +69,7 @@ resource "yandex_vpc_security_group" "db_sg" {
 
 resource "yandex_vpc_security_group" "monitoring_sg" {
   name       = "${local.resource_prefix}-monitoring-sg"
-  network_id = yandex_vpc_network.main.id
+  network_id = local.network_id
 
   ingress {
     protocol       = "TCP"
