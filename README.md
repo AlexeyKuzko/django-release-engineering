@@ -45,21 +45,24 @@ This is a demo project that demonstrates the use of Django, Docker, and GitLab C
 flowchart TD
     A[test: run_linters] --> C[build]
     B[test: run_pytest] --> C
+
     C --> D[publish]
-    D --> E[terraform_apply]
-    E --> F[ansible_deploy]
-    F --> G[health_check]
-    G --> H[Success]
-    H --> L[notify_success]
-    G -->|on_failure| I[rollback]
-    I --> J[Rolled back]
-    J --> M[notify_failure]
+    C --> E[terraform_apply]
     E -. manual .-> K[terraform_destroy]
 
-    style H fill:#4ade80
-    style J fill:#4ade80
+    D --> F[ansible_deploy]
+    E --> F
+    F --> G[health_check]
+
+    G -->|success| L[notify_telegram_success]
+    G -->|failure| I[notify_telegram_failure]
+    I --> M[rollback]
+
+    style L fill:#4ade80
+    style M fill:#4ade80
     style I fill:#fbbf24
 ```
+Примечание: `rollback` дополнительно использует артефакты из `publish_latest` и `terraform_apply` (`needs` в `.gitlab-ci.yml`).
 ### Назначение этапов (stage) пайплайна:
 - `test` - параллельный запуск `run_linters` (pre-commit-hooks, django-upgrade, ruff, djLint) и `run_pytest` (pytest)
 - `build` - сборка Docker-образа приложения и push в Container Registry с тегом commit SHA
@@ -80,8 +83,8 @@ flowchart TD
 | `build` | `build_image` | После успешного завершения `run_linters` и `run_pytest` (`needs`) | Сборка через Kaniko: создание `/kaniko/.docker/config.json`; запуск `/kaniko/executor` с `--context "$CI_PROJECT_DIR"`, `--dockerfile "$CI_PROJECT_DIR/Dockerfile"`, `--destination "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"` (`IMAGE_TAG`), `--cache=true` | Docker-образ собирается и сразу пушится в GitLab Container Registry с тегом коммита |
 | `publish` | `publish_latest` | Для `main` (prod) и `dev/develop` (dev), после `build_image` (`needs`) | Образ `gcr.io/go-containerregistry/crane:debug`; `crane auth login` в `$CI_REGISTRY`; если `latest-$DEPLOY_ENV` существует — `crane tag ... previous-$DEPLOY_ENV`, затем `crane tag $IMAGE_TAG latest-$DEPLOY_ENV` | Образ с тегом коммита получает `latest-dev`/`latest-prod`, предыдущий хранится как `previous-dev`/`previous-prod` |
 | `terraform` | `terraform_destroy` | Для `main` (prod) и `dev/develop` (dev), вручную (`when: manual`) | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init` с backend key `${DEPLOY_ENV}/terraform.tfstate`; `terraform destroy -auto-approve` | Полное удаление инфраструктуры по выбранному окружению |
-| `terraform` | `terraform_apply` | Для `main` (prod) и `dev/develop` (dev) | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init` с backend key `${DEPLOY_ENV}/terraform.tfstate`; `terraform validate`; `terraform plan -out=tfplan`; `terraform apply -auto-approve tfplan`; сохранение артефактов | `prod` управляет полной сетью (VPC/subnets/NAT), `dev` переиспользует `prod` VPC/subnets из remote state и разворачивает собственные VM/SG/DNS |
-| `deploy` | `ansible_deploy` | Для `main` (prod) и `dev/develop` (dev), после `terraform_apply` (`needs`) | Образ `python:3.12-slim`; `pip install ansible`; переход в `ansible`; `ansible-playbook site.yml` с `--extra-vars`: `image=$IMAGE_TAG`, `registry_url=$CI_REGISTRY`, `registry_user=$CI_REGISTRY_USER`, `registry_password=$CI_REGISTRY_PASSWORD` | Попытка развернуть приложение и сопутствующие сервисы на подготовленной инфраструктуре |
+| `terraform` | `terraform_apply` | Для `main` (prod) и `dev/develop` (dev), после `build_image` (`needs`), параллельно с `publish_latest` | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init` с backend key `${DEPLOY_ENV}/terraform.tfstate`; `terraform validate`; `terraform plan -out=tfplan`; `terraform apply -auto-approve tfplan`; сохранение артефактов | `prod` управляет полной сетью (VPC/subnets/NAT), `dev` переиспользует `prod` VPC/subnets из remote state и разворачивает собственные VM/SG/DNS |
+| `deploy` | `ansible_deploy` | Для `main` (prod) и `dev/develop` (dev), после `publish_latest` и `terraform_apply` (`needs`) | Образ `python:3.12-slim`; `pip install ansible`; переход в `ansible`; `ansible-playbook site.yml` с `--extra-vars`: `image=$IMAGE_TAG`, `registry_url=$CI_REGISTRY`, `registry_user=$CI_REGISTRY_USER`, `registry_password=$CI_REGISTRY_PASSWORD` | Попытка развернуть приложение и сопутствующие сервисы на подготовленной инфраструктуре |
 | `health_check` | `health_check` | Для `main` (prod) и `dev/develop` (dev), после `ansible_deploy` (`needs`) | Образ `curlimages/curl:latest`; проверки `curl -f https://$APP_DOMAIN/health` и `curl -f https://$APP_DOMAIN/` (с fallback на IP) | Подтверждение доступности приложения по HTTPS-домену, при неуспехе стадия падает |
 | `rollback` | `rollback` | Для `main` (prod) и `dev/develop` (dev), `when: on_failure` | Образ `python:3.12-slim`; установка `ansible`; переход в `ansible`; запуск `ansible-playbook site.yml` с `image=$PREVIOUS_IMAGE` и параметрами `registry_url`, `registry_user`, `registry_password` | Попытка отката на `previous-dev`/`previous-prod` (если тег существует) |
 | `notify` | `notify_telegram_success` / `notify_telegram_failure` | Для `main` (prod) и `dev/develop` (dev), `when: on_success` / `when: on_failure` | Образ `curlimages/curl:latest`; POST в Telegram Bot API `sendMessage` с данными pipeline; использует `TELEGRAM_BOT_TOKEN` и `TELEGRAM_CHAT_ID` | Отправка уведомления об успешном/неуспешном деплое в Telegram |
@@ -143,7 +146,7 @@ flowchart TD
 **Статус для ВКР:** Готово к защите (9/10)
 
 Проект полностью реализует заявленные цели:
-- Автоматизированный CI/CD pipeline (test/build/publish/deploy/notify)
+- Автоматизированный CI/CD pipeline (test/build/`publish_latest || terraform_apply`/deploy/health_check/rollback/notify)
 - Infrastructure as Code (Terraform)
 - Configuration Management (Ansible)
 - Health-check и автоматический rollback
@@ -192,7 +195,7 @@ uv run python manage.py runserver
 ## 11. Текущий статус проекта (Production-Ready)
 
 ### Реализовано полностью ✅
-- **CI Pipeline:** test (`run_linters` + `run_pytest`, параллельно) → build → publish → deploy → health_check → rollback/notify (полностью автоматизировано)
+- **CI Pipeline:** test (`run_linters` + `run_pytest`, параллельно) → build → (`publish_latest` || `terraform_apply`) → deploy (после обоих) → health_check → rollback/notify (полностью автоматизировано)
 - **Terraform IaC:** VPC, subnets (public/private), NAT Gateway, security groups, VM (app/db/monitoring), DNS-зона
 - **Ansible деплой:** idempotent-роли для app, db, monitoring; авто-определение docker-compose команды
 - **Image Tagging:** commit SHA + `latest-dev/latest-prod` + `previous-dev/previous-prod` (для rollback)
@@ -269,8 +272,8 @@ uv run python manage.py runserver
                     │   Pipeline    │
                     │               │
                     │ test→         │
-                    │ build→publish │
-                    │ →terraform→   │
+                    │ build→(publish│
+                    │ ||terraform)→ │
                     │ deploy→check  │
                     └───────────────┘
 ```
