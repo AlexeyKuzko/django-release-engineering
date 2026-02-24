@@ -522,6 +522,8 @@ notify_telegram_success:
   stage: notify
   image: curlimages/curl:latest
   allow_failure: true
+  dependencies:
+    - terraform_apply
   script:
     - |
       if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
@@ -529,6 +531,10 @@ notify_telegram_success:
         exit 0
       fi
     - |
+      MONITORING_ENDPOINT="unknown"
+      if [ -n "${MONITORING_PUBLIC_IP:-}" ]; then
+        MONITORING_ENDPOINT="http://${MONITORING_PUBLIC_IP}:3000"
+      fi
       MESSAGE="$(printf '%s\n' \
         '[DEPLOY][SUCCESS]' \
         "env: ${DEPLOY_ENV}" \
@@ -536,7 +542,8 @@ notify_telegram_success:
         "branch: ${CI_COMMIT_REF_NAME}" \
         "commit: ${CI_COMMIT_SHORT_SHA}" \
         "pipeline: ${CI_PIPELINE_URL}" \
-        "${APP_DOMAIN:+app: https://${APP_DOMAIN}}")"
+        "${APP_DOMAIN:+app: https://${APP_DOMAIN}}" \
+        "monitoring: ${MONITORING_ENDPOINT}")"
       curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
         --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
         --data-urlencode "text=${MESSAGE}" \
@@ -554,13 +561,30 @@ notify_telegram_failure:
         exit 0
       fi
     - |
+      FAILED_JOB_NAME="unknown"
+      if [ -n "${CI_API_V4_URL:-}" ] && [ -n "${CI_PROJECT_ID:-}" ] && [ -n "${CI_PIPELINE_ID:-}" ] && [ -n "${CI_JOB_TOKEN:-}" ]; then
+        FAILED_JOBS_JSON="$(curl -fsS --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/jobs?scope[]=failed&order_by=id&sort=desc&per_page=20" || true)"
+        if [ -n "${FAILED_JOBS_JSON}" ]; then
+          FAILED_JOB_NAME="$(printf '%s' "${FAILED_JOBS_JSON}" \
+            | grep -o '"name":"[^"]*"' \
+            | head -n1 \
+            | cut -d':' -f2- \
+            | tr -d '"' || true)"
+        fi
+      fi
+      if [ -z "${FAILED_JOB_NAME}" ]; then
+        FAILED_JOB_NAME="unknown"
+      fi
+    - |
       MESSAGE="$(printf '%s\n' \
         '[DEPLOY][FAILED]' \
         "env: ${DEPLOY_ENV}" \
         "project: ${CI_PROJECT_PATH}" \
         "branch: ${CI_COMMIT_REF_NAME}" \
         "commit: ${CI_COMMIT_SHORT_SHA}" \
-        "pipeline: ${CI_PIPELINE_URL}")"
+        "pipeline: ${CI_PIPELINE_URL}" \
+        "failed_job: ${FAILED_JOB_NAME}")"
       curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
         --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
         --data-urlencode "text=${MESSAGE}" \
