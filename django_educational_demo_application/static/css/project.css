@@ -11,3 +11,42 @@
   background-color: #f2dede;
   border-color: #eed3d7;
 }
+
+.readme-content {
+  line-height: 1.6;
+}
+
+.readme-content h1,
+.readme-content h2,
+.readme-content h3,
+.readme-content h4,
+.readme-content h5,
+.readme-content h6 {
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.readme-content pre {
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  background-color: #f8f9fa;
+}
+
+.readme-content :not(pre) > code {
+  padding: 0.2rem 0.35rem;
+  border-radius: 0.25rem;
+  background-color: #f8f9fa;
+}
+
+.readme-content table {
+  width: 100%;
+  margin: 1rem 0;
+  border-collapse: collapse;
+}
+
+.readme-content th,
+.readme-content td {
+  padding: 0.6rem;
+  border: 1px solid #dee2e6;
+}

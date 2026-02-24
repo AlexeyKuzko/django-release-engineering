@@ -199,15 +199,21 @@ terraform_apply:
         export TF_VAR_ssh_public_key="$(printf '%s' "$SSH_PUBLIC_KEY" | base64 -d)"
       fi
     - |
-      if [ "${DEPLOY_ENV}" = "prod" ]; then
-        default_app_domain="app.example.com"
-      else
-        default_app_domain="dev.app.example.com"
+      if [ -z "${APP_DOMAIN:-}" ]; then
+        echo "APP_DOMAIN is not set for DEPLOY_ENV=${DEPLOY_ENV}."
+        echo "Set APP_DOMAIN as an environment-scoped CI/CD variable in GitLab."
+        exit 1
       fi
-      export TF_VAR_app_domain="${APP_DOMAIN:-$default_app_domain}"
+      if ! printf '%s' "$APP_DOMAIN" | grep -Eq '^([A-Za-z0-9-]+\.)+[A-Za-z]{2,63}\.?$|^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+        echo "APP_DOMAIN has invalid format: ${APP_DOMAIN}"
+        echo "Expected FQDN (example: app.example.com) or IPv4."
+        exit 1
+      fi
+      export TF_VAR_app_domain="$APP_DOMAIN"
       export TF_VAR_manage_dns="${MANAGE_DNS:-false}"
       export TF_VAR_dns_zone="${DNS_ZONE:-example.com}"
       export TF_VAR_dns_zone_resource_name="${DNS_ZONE_RESOURCE_NAME:-diploma-zone-${DEPLOY_ENV}}"
+      echo "Terraform DNS config: app_domain=${TF_VAR_app_domain}, manage_dns=${TF_VAR_manage_dns}, dns_zone=${TF_VAR_dns_zone}"
     - export AWS_ACCESS_KEY_ID="${YC_STORAGE_ACCESS_KEY:-$AWS_ACCESS_KEY_ID}"
     - export AWS_SECRET_ACCESS_KEY="${YC_STORAGE_SECRET_KEY:-$AWS_SECRET_ACCESS_KEY}"
     - terraform init -backend-config="access_key=${AWS_ACCESS_KEY_ID}" -backend-config="secret_key=${AWS_SECRET_ACCESS_KEY}" -backend-config="key=${DEPLOY_ENV}/terraform.tfstate"
@@ -314,15 +320,21 @@ terraform_destroy:
         export TF_VAR_ssh_public_key="$(printf '%s' "$SSH_PUBLIC_KEY" | base64 -d)"
       fi
     - |
-      if [ "${DEPLOY_ENV}" = "prod" ]; then
-        default_app_domain="app.example.com"
-      else
-        default_app_domain="dev.app.example.com"
+      if [ -z "${APP_DOMAIN:-}" ]; then
+        echo "APP_DOMAIN is not set for DEPLOY_ENV=${DEPLOY_ENV}."
+        echo "Set APP_DOMAIN as an environment-scoped CI/CD variable in GitLab."
+        exit 1
       fi
-      export TF_VAR_app_domain="${APP_DOMAIN:-$default_app_domain}"
+      if ! printf '%s' "$APP_DOMAIN" | grep -Eq '^([A-Za-z0-9-]+\.)+[A-Za-z]{2,63}\.?$|^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+        echo "APP_DOMAIN has invalid format: ${APP_DOMAIN}"
+        echo "Expected FQDN (example: app.example.com) or IPv4."
+        exit 1
+      fi
+      export TF_VAR_app_domain="$APP_DOMAIN"
       export TF_VAR_manage_dns="${MANAGE_DNS:-false}"
       export TF_VAR_dns_zone="${DNS_ZONE:-example.com}"
       export TF_VAR_dns_zone_resource_name="${DNS_ZONE_RESOURCE_NAME:-diploma-zone-${DEPLOY_ENV}}"
+      echo "Terraform DNS config: app_domain=${TF_VAR_app_domain}, manage_dns=${TF_VAR_manage_dns}, dns_zone=${TF_VAR_dns_zone}"
     - export AWS_ACCESS_KEY_ID="${YC_STORAGE_ACCESS_KEY:-$AWS_ACCESS_KEY_ID}"
     - export AWS_SECRET_ACCESS_KEY="${YC_STORAGE_SECRET_KEY:-$AWS_SECRET_ACCESS_KEY}"
     - terraform init -backend-config="access_key=${AWS_ACCESS_KEY_ID}" -backend-config="secret_key=${AWS_SECRET_ACCESS_KEY}" -backend-config="key=${DEPLOY_ENV}/terraform.tfstate"
@@ -410,6 +422,13 @@ health_check:
       if [ "$https_health_rc" -eq 0 ] && [ "$https_home_rc" -eq 0 ]; then
         echo "HTTPS checks passed for ${APP_DOMAIN}."
         exit 0
+      fi
+
+      if [ "$https_health_rc" -eq 6 ] || [ "$https_home_rc" -eq 6 ]; then
+        echo "DNS resolution failed for ${APP_DOMAIN} (curl rc=6)."
+        echo "Failing pipeline because the domain name is not resolvable."
+        echo "Check APP_DOMAIN spelling and DNS A/AAAA records."
+        exit 1
       fi
 
       echo "HTTPS checks are non-blocking for deploy flow."
