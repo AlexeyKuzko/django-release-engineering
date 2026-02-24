@@ -23,6 +23,13 @@ resource "yandex_vpc_security_group" "app_sg" {
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    protocol          = "TCP"
+    description       = "Node exporter from Monitoring"
+    port              = 9100
+    security_group_id = yandex_vpc_security_group.monitoring_sg.id
+  }
+
   egress {
     protocol       = "ANY"
     v4_cidr_blocks = ["0.0.0.0/0"]
@@ -59,6 +66,13 @@ resource "yandex_vpc_security_group" "db_sg" {
     description    = "Postgres from App subnet"
     port           = 5432
     v4_cidr_blocks = [local.public_subnet_cidr]
+  }
+
+  ingress {
+    protocol          = "TCP"
+    description       = "Node exporter from Monitoring"
+    port              = 9100
+    security_group_id = yandex_vpc_security_group.monitoring_sg.id
   }
 
   egress {
