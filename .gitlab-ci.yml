@@ -431,7 +431,15 @@ health_check:
         exit 1
       fi
 
-      echo "HTTPS checks are non-blocking for deploy flow."
+      if [ "${DEPLOY_ENV:-}" = "prod" ]; then
+        echo "HTTPS checks failed in prod for ${APP_DOMAIN}."
+        echo "health rc=${https_health_rc}, homepage rc=${https_home_rc}."
+        echo "Most likely TLS certificate is not ready (for example ACME rate limit)."
+        echo "Failing pipeline in prod to avoid false-green deploy status."
+        exit 1
+      fi
+
+      echo "HTTPS checks are non-blocking only for non-prod deploy flow."
       echo "health rc=${https_health_rc}, homepage rc=${https_home_rc}."
       echo "Likely TLS is not ready yet (for example ACME rate limit) or DNS is not propagated."
 

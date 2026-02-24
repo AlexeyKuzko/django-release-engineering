@@ -92,10 +92,14 @@
 
 - name: Pull latest app image
   ansible.builtin.command: "{{ docker_compose_cmd }} -f {{ app_dir }}/docker-compose.yml pull web"
+  environment:
+    COMPOSE_PROJECT_NAME: app
   changed_when: false
 
 - name: Start application stack
   ansible.builtin.command: "{{ docker_compose_cmd }} -f {{ app_dir }}/docker-compose.yml up -d --remove-orphans"
+  environment:
+    COMPOSE_PROJECT_NAME: app
   changed_when: true
 
 - name: Wait for app HTTP endpoint through reverse proxy
@@ -123,7 +127,7 @@
   args:
     executable: /bin/bash
   register: app_tls_health
-  retries: 30
+  retries: 12
   delay: 10
   until: app_tls_health.rc == 0
   changed_when: false
@@ -131,6 +135,8 @@
 
 - name: Collect recent Caddy logs when TLS endpoint is not ready yet
   ansible.builtin.command: "{{ docker_compose_cmd }} -f {{ app_dir }}/docker-compose.yml logs --tail=200 caddy"
+  environment:
+    COMPOSE_PROJECT_NAME: app
   register: caddy_logs
   changed_when: false
   failed_when: false
