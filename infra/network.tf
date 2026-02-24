@@ -14,19 +14,19 @@ data "terraform_remote_state" "prod" {
 }
 
 resource "yandex_vpc_network" "main" {
-  count = local.use_shared_network ? 0 : 1
+  count = 1
   name  = "${local.resource_prefix}-network"
 }
 
 resource "yandex_vpc_gateway" "nat" {
-  count = local.use_shared_network ? 0 : 1
+  count = 1
   name  = "${local.resource_prefix}-nat-gateway"
 
   shared_egress_gateway {}
 }
 
 resource "yandex_vpc_route_table" "private" {
-  count      = local.use_shared_network ? 0 : 1
+  count      = 1
   name       = "${local.resource_prefix}-private-rt"
   network_id = yandex_vpc_network.main[0].id
 
@@ -37,7 +37,7 @@ resource "yandex_vpc_route_table" "private" {
 }
 
 resource "yandex_vpc_subnet" "public" {
-  count          = local.use_shared_network ? 0 : 1
+  count          = 1
   name           = "${local.resource_prefix}-public-subnet"
   zone           = var.zone
   network_id     = yandex_vpc_network.main[0].id
@@ -45,7 +45,7 @@ resource "yandex_vpc_subnet" "public" {
 }
 
 resource "yandex_vpc_subnet" "private" {
-  count          = local.use_shared_network ? 0 : 1
+  count          = 1
   name           = "${local.resource_prefix}-private-subnet"
   zone           = var.zone
   network_id     = yandex_vpc_network.main[0].id
@@ -62,13 +62,13 @@ resource "yandex_vpc_address" "app_public_ip" {
 }
 
 locals {
-  network_id = local.use_shared_network ? data.terraform_remote_state.prod[0].outputs.network_id : yandex_vpc_network.main[0].id
+  network_id = yandex_vpc_network.main[0].id
 
-  public_subnet_id = local.use_shared_network ? data.terraform_remote_state.prod[0].outputs.public_subnet_id : yandex_vpc_subnet.public[0].id
+  public_subnet_id = yandex_vpc_subnet.public[0].id
 
-  private_subnet_id = local.use_shared_network ? data.terraform_remote_state.prod[0].outputs.private_subnet_id : yandex_vpc_subnet.private[0].id
+  private_subnet_id = yandex_vpc_subnet.private[0].id
 
-  public_subnet_cidr = local.use_shared_network ? data.terraform_remote_state.prod[0].outputs.public_subnet_cidr : var.public_cidr
+  public_subnet_cidr = var.public_cidr
 
-  private_subnet_cidr = local.use_shared_network ? data.terraform_remote_state.prod[0].outputs.private_subnet_cidr : var.private_cidr
+  private_subnet_cidr = var.private_cidr
 }

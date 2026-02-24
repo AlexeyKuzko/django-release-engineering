@@ -1,1 +1,5 @@
 {% extends "base.html" %}
+
+{% block content %}
+  <article class="readme-content">{{ readme_html|safe }}</article>
+{% endblock content %}
