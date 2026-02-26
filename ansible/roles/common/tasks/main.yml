@@ -5,3 +5,16 @@
       - curl
       - gnupg
     update_cache: true
+
+- name: Install node exporter
+  ansible.builtin.apt:
+    name:
+      - prometheus-node-exporter
+    state: present
+    update_cache: false
+
+- name: Ensure node exporter is enabled and running
+  ansible.builtin.service:
+    name: prometheus-node-exporter
+    state: started
+    enabled: true

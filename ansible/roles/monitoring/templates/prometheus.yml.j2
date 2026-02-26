@@ -1,0 +1,31 @@
+global:
+  scrape_interval: "{{ prometheus_scrape_interval }}"
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - "localhost:9090"
+
+  - job_name: app-vm
+    static_configs:
+{% for host in groups.get('app', []) %}
+      - targets:
+          - "{{ hostvars[host].ansible_default_ipv4.address | default(hostvars[host].ansible_host | default(host)) }}:9100"
+        labels:
+          host: "{{ host }}"
+{% else %}
+      - targets: []
+{% endfor %}
+
+  - job_name: db-vm
+    static_configs:
+{% for host in groups.get('db', []) %}
+      - targets:
+          - "{{ hostvars[host].ansible_default_ipv4.address | default(hostvars[host].ansible_host | default(host)) }}:9100"
+        labels:
+          host: "{{ host }}"
+{% else %}
+      - targets: []
+{% endfor %}

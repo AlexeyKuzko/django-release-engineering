@@ -1,1 +1,4 @@
 monitoring_dir: /opt/monitoring
+prometheus_scrape_interval: 15s
+grafana_admin_user: admin
+grafana_admin_password: admin

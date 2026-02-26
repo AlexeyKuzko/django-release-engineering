@@ -51,6 +51,57 @@
     group: ubuntu
     mode: "0755"
 
+- name: Ensure monitoring config directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+  loop:
+    - "{{ monitoring_dir }}/prometheus"
+    - "{{ monitoring_dir }}/grafana"
+    - "{{ monitoring_dir }}/grafana/provisioning"
+    - "{{ monitoring_dir }}/grafana/provisioning/datasources"
+    - "{{ monitoring_dir }}/grafana/provisioning/dashboards"
+    - "{{ monitoring_dir }}/grafana/dashboards"
+
+- name: Render Prometheus configuration
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ monitoring_dir }}/prometheus/prometheus.yml"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+  register: prometheus_config
+
+- name: Render Grafana Prometheus datasource provisioning
+  ansible.builtin.template:
+    src: grafana-datasource.yml.j2
+    dest: "{{ monitoring_dir }}/grafana/provisioning/datasources/prometheus.yml"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+  register: grafana_datasource_config
+
+- name: Render Grafana dashboard provider provisioning
+  ansible.builtin.template:
+    src: grafana-dashboard-provider.yml.j2
+    dest: "{{ monitoring_dir }}/grafana/provisioning/dashboards/provider.yml"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+  register: grafana_dashboard_provider_config
+
+- name: Install default infrastructure dashboard
+  ansible.builtin.copy:
+    src: infra-overview.json
+    dest: "{{ monitoring_dir }}/grafana/dashboards/infra-overview.json"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+  register: grafana_dashboard_config
+
 - name: Render monitoring docker compose
   ansible.builtin.template:
     src: docker-compose.yml.j2
@@ -58,7 +109,13 @@
     owner: ubuntu
     group: ubuntu
     mode: "0644"
+  register: monitoring_compose_config
 
 - name: Start monitoring stack
   ansible.builtin.command: "{{ docker_compose_cmd }} -f {{ monitoring_dir }}/docker-compose.yml up -d --remove-orphans"
+  changed_when: true
+
+- name: Restart monitoring services when configuration changed
+  ansible.builtin.command: "{{ docker_compose_cmd }} -f {{ monitoring_dir }}/docker-compose.yml restart prometheus grafana"
+  when: prometheus_config.changed or grafana_datasource_config.changed or grafana_dashboard_provider_config.changed or grafana_dashboard_config.changed or monitoring_compose_config.changed
   changed_when: true
