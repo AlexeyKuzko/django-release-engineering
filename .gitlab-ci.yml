@@ -1,11 +1,8 @@
 stages:
   - test
   - build
-  - publish
-  - terraform
+  - infra
   - deploy
-  - health_check
-  - rollback
   - notify
 
 variables:
@@ -114,7 +111,7 @@ build_image:
 
 # Publish to GitLab Container Registry
 publish_latest:
-  stage: publish
+  stage: build
   image:
     name: gcr.io/go-containerregistry/crane:debug
     entrypoint: [""]
@@ -143,7 +140,7 @@ publish_latest:
 
 # Create infra with terraform apply and prepare inventory from outputs
 terraform_apply:
-  stage: terraform
+  stage: infra
   image:
     name: hashicorp/terraform:1.6
     entrypoint: [""]
@@ -262,9 +259,9 @@ terraform_apply:
   rules: *deploy_env_rules
 
 
-# Manually distroy terraform resources when needed
+# Manually destroy terraform resources when needed
 terraform_destroy:
-  stage: terraform
+  stage: infra
   image:
     name: hashicorp/terraform:1.6
     entrypoint: [""]
@@ -397,7 +394,7 @@ ansible_deploy:
 
 # Perform health check of deployed app over HTTPS domain
 health_check:
-  stage: health_check
+  stage: deploy
   image: curlimages/curl:latest
   needs:
     - job: terraform_apply
@@ -459,7 +456,7 @@ health_check:
 
 # Rollback to previous stable image from Container Registry
 rollback:
-  stage: rollback
+  stage: deploy
   image: python:3.12-slim
   variables:
     ANSIBLE_CONFIG: ansible/ansible.cfg

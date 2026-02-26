@@ -1,169 +1,153 @@
-# Deployment of Educational Django Application project
-Проект, демонстрирующий использование GitLab CI/CD для развертывания простого Django веб-приложения.
+# Deployment of Educational Django Application
 
-## 1. Назначение проекта
-Репозиторий содержит Django-приложение и CI/CD-обвязку для:
-- сборки и публикации Docker-образа в GitLab Container Registry;
-- развёртывания через Terraform + Ansible;
-- базовой проверки доступности после деплоя;
-- попытки отката при неуспешной проверке.
+Автоматизированный GitLab CI/CD pipeline для развертывания Django-приложения в Yandex Cloud.
 
-Разделение ответственности:
-- GitLab CI: оркестрация
-- Terraform: создание инфраструктуры
-- Ansible: конфигурация и доставка
-- Docker Compose: запуск сервисов на App VM и Monitoring VM
+## Назначение
 
-## 2. Архитектура проекта
-### Используемые технологии:
-- `Django 5.2` - приложение.
-- `Gunicorn` - запуск WSGI-приложения.
-- `PostgreSQL` - основная БД.
-- `Redis` - кэш/бэкенд для `django-redis`.
-- `Docker` - упаковка и запуск сервисов.
-- `Docker Compose` - описание runtime-сервисов.
-- `GitLab CI` - оркестрация CI/CD.
-- `GitLab Container Registry` - хранение образов.
-- `Pytest` + `pytest-django` - тестирование.
-- `Terraform` - инфраструктура (VPC, subnet, VM, SG).
-- `Ansible` - конфигурация и деплой на VM.
+CI/CD pipeline обеспечивает:
+- автоматическую сборку и публикацию Docker-образов в GitLab Container Registry;
+- развёртывание инфраструктуры через Terraform (VPC, VM, security groups);
+- конфигурацию серверов и деплой через Ansible;
+- health-check развернутого приложения;
+- автоматический откат при неудачной проверке;
+- уведомления в Telegram о результатах деплоя.
 
-### Cостав репозитория:
-- `Django` приложение (`config/`, `django_educational_demo_application/`).
-- `Dockerfile` для контейнера приложения.
-- `GitLab CI` пайплайн (`.gitlab-ci.yml`).
-- `Terraform` (директория `infra/`) для создания инфраструктуры в Yandex Cloud.
-- `Ansible` (директория `ansible/`) для конфигурации хостов и запуска сервисов.
-- Шаблоны Docker Compose в Ansible-ролях для запуска сервисов на VM.
+## Технологии
 
+| Категория | Инструменты |
+|---|---|
+| Application | Django 5.2, Gunicorn, PostgreSQL, Redis |
+| Containerization | Docker, Docker Compose |
+| CI/CD | GitLab CI, GitLab Container Registry, Kaniko |
+| IaC | Terraform (Yandex Cloud provider) |
+| Configuration | Ansible |
+| Testing | pytest, pytest-django, pre-commit (ruff, djLint) |
+| Monitoring | Grafana, Prometheus |
 
-## 3. Архитектура CI/CD
-### Общая схема пайплайна:
+## Структура репозитория
+
+```
+├── .gitlab-ci.yml          # GitLab CI/CD pipeline
+├── Dockerfile              # Образ приложения
+├── infra/                  # Terraform-модули для Yandex Cloud
+├── ansible/                # Ansible-роли и плейбуки
+├── config/                 # Django settings
+├── django_educational_demo_application/  # Django app
+└── tests/                  # Тесты
+```
+
+## Архитектура CI/CD
+
+### Схема пайплайна
 
 ```mermaid
 flowchart LR
-    A[test: run_linters] --> C[build]
-    B[test: run_pytest] --> C
+    subgraph Stage_Test ["test"]
+        A1[run_linters]
+        A2[run_pytest]
+    end
 
-    C --> D[publish]
-    C --> E[terraform_apply]
-    E -. manual .-> K[terraform_destroy]
+    subgraph Stage_Build ["build"]
+        B1[build_image]
+        B2[publish_latest]
+    end
 
-    D --> F[ansible_deploy]
-    E --> F
-    F --> G[health_check]
+    subgraph Stage_Infra ["infra"]
+        C1[terraform_apply]
+        C2[terraform_destroy]
+    end
 
-    G -->|success| L[notify_telegram_success]
-    G -->|failure| I[notify_telegram_failure]
-    I --> M[rollback]
+    subgraph Stage_Deploy ["deploy"]
+        D1[ansible_deploy]
+        D2[health_check]
+        D3[rollback]
+    end
 
-    style L fill:#4ade80
-    style M fill:#4ade80
-    style I fill:#fbbf24
+    subgraph Stage_Notify ["notify"]
+        E1[notify_telegram_success]
+        E2[notify_telegram_failure]
+    end
+
+    A1 --> B1
+    A2 --> B1
+    B1 --> B2
+    B1 --> C1
+    B2 --> D1
+    C1 -. manual .-> C2
+    C1 --> D1
+    D1 --> D2
+    D2 -->|success| E1
+    D2 -->|failure| D3
+    D3 --> E2
+
+    style D3 fill:green
+    style E1 fill:green
+    style E2 fill:orange
 ```
-Примечание: `rollback` дополнительно использует артефакты из `publish_latest` и `terraform_apply` (`needs` в `.gitlab-ci.yml`).
-### Назначение этапов (stage) пайплайна:
-- `test` - параллельный запуск `run_linters` (pre-commit-hooks, django-upgrade, ruff, djLint) и `run_pytest` (pytest)
-- `build` - сборка Docker-образа приложения и push в Container Registry с тегом commit SHA
-- `publish` - публикация тегированного образа в GitLab Container Registry
-- `terraform` - создание инфраструктуры для деплоя (Terraform apply) и ручное удаление (Terraform destroy)
-- `deploy` - запуск Ansible-плейбука для деплоя приложения, БД и мониторинга
-- `health_check` - проверка `/health` и главной страницы у задеплоенного приложения
-- `rollback` - в случае провала `health_check` осуществляет откат к предыдущему образу из Container Registry
-- `notify` - отправка уведомления в [Telegram](https://t.me/dedapp_notifications) по итогам pipeline (`success`/`failure`)
+
+> **Для наглядности диаграмма упрощена**:
+> - `publish_latest` и `terraform_apply` выполняются параллельно после `build_image`
+> - `ansible_deploy` требует артефакты от `terraform_apply` и `publish_latest`
+> - `notify_telegram_success` запускается `on_success` - когда не осталось pending/failed jobs (не только после `health_check`)
+> - `notify_telegram_failure` запускается на `on_failure` при любой ошибке (не только после `rollback`)
 
 
-### Что происходит на каждом из этапов pipeline
+### Этапы пайплайна
 
-| Stage | Job | Когда запускается                                            | Что выполняется | Результат |
-|---|---|--------------------------------------------------------------|---|---|
-| `test` | `run_linters` | При каждом push в репозиторий, параллельно с `run_pytest` | Образ `ghcr.io/astral-sh/uv:python3.13-bookworm`; установка `git`; запуск `uv tool run pre-commit==4.5.1 run --show-diff-on-failure --color=always --all-files` | Проверка качества кода, при ошибке пайплайн останавливается |
-| `test` | `run_pytest` | При каждом push в репозиторий, параллельно с `run_linters` | Образ `ghcr.io/astral-sh/uv:python3.13-bookworm`; сервис `postgres:15`; настройка `DATABASE_URL`; установка `build-essential`, `libpq-dev`; `uv sync --locked`; `uv run pytest` | Проверка корректности тестами, при падении тестов дальнейшие стадии не запускаются |
-| `build` | `build_image` | После успешного завершения `run_linters` и `run_pytest` (`needs`) | Сборка через Kaniko: создание `/kaniko/.docker/config.json`; запуск `/kaniko/executor` с `--context "$CI_PROJECT_DIR"`, `--dockerfile "$CI_PROJECT_DIR/Dockerfile"`, `--destination "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"` (`IMAGE_TAG`), `--cache=true` | Docker-образ собирается и сразу пушится в GitLab Container Registry с тегом коммита |
-| `publish` | `publish_latest` | Для `main` (prod) и `dev/develop` (dev), после `build_image` (`needs`) | Образ `gcr.io/go-containerregistry/crane:debug`; `crane auth login` в `$CI_REGISTRY`; если `latest-$DEPLOY_ENV` существует — `crane tag ... previous-$DEPLOY_ENV`, затем `crane tag $IMAGE_TAG latest-$DEPLOY_ENV` | Образ с тегом коммита получает `latest-dev`/`latest-prod`, предыдущий хранится как `previous-dev`/`previous-prod` |
-| `terraform` | `terraform_destroy` | Для `main` (prod) и `dev/develop` (dev), вручную (`when: manual`) | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init` с backend key `${DEPLOY_ENV}/terraform.tfstate`; `terraform destroy -auto-approve` | Полное удаление инфраструктуры по выбранному окружению |
-| `terraform` | `terraform_apply` | Для `main` (prod) и `dev/develop` (dev), после `build_image` (`needs`), параллельно с `publish_latest` | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init` с backend key `${DEPLOY_ENV}/terraform.tfstate`; `terraform validate`; `terraform plan -out=tfplan`; `terraform apply -auto-approve tfplan`; сохранение артефактов | Для каждого окружения создаётся собственная сеть (VPC/subnets/NAT), VM/SG и (опционально) DNS |
-| `deploy` | `ansible_deploy` | Для `main` (prod) и `dev/develop` (dev), после `publish_latest` и `terraform_apply` (`needs`) | Образ `python:3.12-slim`; `pip install ansible`; переход в `ansible`; `ansible-playbook site.yml` с `--extra-vars`: `image=$IMAGE_TAG`, `registry_url=$CI_REGISTRY`, `registry_user=$CI_REGISTRY_USER`, `registry_password=$CI_REGISTRY_PASSWORD` | Попытка развернуть приложение и сопутствующие сервисы на подготовленной инфраструктуре |
-| `health_check` | `health_check` | Для `main` (prod) и `dev/develop` (dev), после `ansible_deploy` (`needs`) | Образ `curlimages/curl:latest`; проверки `curl -f https://$APP_DOMAIN/health` и `curl -f https://$APP_DOMAIN/` (с fallback на IP) | Если домен не резолвится (`curl rc=6`) стадия падает; при временных TLS-проблемах возможен non-blocking проход по HTTP/IP fallback |
-| `rollback` | `rollback` | Для `main` (prod) и `dev/develop` (dev), `when: on_failure` | Образ `python:3.12-slim`; установка `ansible`; переход в `ansible`; запуск `ansible-playbook site.yml` с `image=$PREVIOUS_IMAGE` и параметрами `registry_url`, `registry_user`, `registry_password` | Попытка отката на `previous-dev`/`previous-prod` (если тег существует) |
-| `notify` | `notify_telegram_success` / `notify_telegram_failure` | Для `main` (prod) и `dev/develop` (dev), `when: on_success` / `when: on_failure` | Образ `curlimages/curl:latest`; POST в Telegram Bot API `sendMessage` с данными pipeline; использует `TELEGRAM_BOT_TOKEN` и `TELEGRAM_CHAT_ID` | Отправка уведомления об успешном/неуспешном деплое в Telegram |
+| Stage | Job | Описание |
+|---|---|---|
+| `test` | `run_linters` | pre-commit hooks (ruff, djLint, django-upgrade) |
+| `test` | `run_pytest` | pytest с PostgreSQL service |
+| `build` | `build_image` | Kaniko: сборка и push с тегом `$CI_COMMIT_SHA` |
+| `build` | `publish_latest` | Тегирование `latest-dev`/`latest-prod` и `previous-dev`/`previous-prod` |
+| `infra` | `terraform_apply` | Создание инфраструктуры в Yandex Cloud |
+| `infra` | `terraform_destroy` | Ручное удаление инфраструктуры |
+| `deploy` | `ansible_deploy` | Деплой через Ansible + Docker Compose |
+| `deploy` | `health_check` | Проверка HTTPS `/health` и `/` |
+| `deploy` | `rollback` | Откат к `previous-<env>` при провале health_check |
+| `notify` | `notify_telegram_*` | Уведомления в Telegram |
+
+**Правила запуска:**
+- Ветки `main` → окружение `prod`, `dev`/`develop` → окружение `dev`
+- `terraform_destroy` запускается вручную
+- `rollback` и `notify_telegram_failure` запускаются при ошибке
 
 
 
-## 4. Что реально работает и что частично
-### Реализовано
-- `test`: параллельный запуск `run_linters` (pre-commit) и `run_pytest` (pytest + PostgreSQL service).
-- `build`: сборка и push образа через Kaniko.
-- `publish`: выставление тегов `latest-dev`/`latest-prod` и поддержка `previous-dev`/`previous-prod`.
-- `terraform`: запуск `terraform init/validate/plan/apply` для `dev/prod` с отдельным backend key (`dev/terraform.tfstate`, `prod/terraform.tfstate`); у каждого окружения собственная VPC/subnets/NAT.
-- `terraform_destroy`: ручное удаление инфраструктуры через `terraform destroy`.
-- `deploy`: Ansible-роль рендерит `.env`, `docker-compose.yml`, `Caddyfile`, подтягивает образ и поднимает стек.
-- `health_check`: проверяются endpoint `/health` и главная страница через HTTPS по домену (с fallback на IP).
-- `rollback`: сохраняется предыдущий `latest-$DEPLOY_ENV` в теге `previous-$DEPLOY_ENV`, выполняется откат при падении.
-- `notify`: отправляется уведомление в Telegram о результате pipeline (success/failure).
+## Реализованный функционал
 
-### Частично реализовано / с критическими ограничениями
-- `rollback`:
-  - хранится только один предыдущий тег на окружение (`previous-<env>`), поэтому первый деплой откатывать некуда.
+### Полностью реализовано ✅
 
-### Отсутствует
-- История стабильных тегов глубже одного шага.
+- **CI Pipeline:** test → build → (publish \|\| terraform) → deploy → health_check → rollback/notify
+- **Terraform IaC:** VPC, subnets (public/private), NAT Gateway, security groups, VM (app/db/monitoring), опциональная DNS-зона
+- **Ansible деплой:** idempotent-роли для app, db, monitoring; авто-определение docker-compose команды
+- **Image Tagging:** commit SHA + `latest-dev/latest-prod` + `previous-dev/previous-prod` (для rollback)
+- **Health-check:** HTTPS проверка `/health` и главной страницы с fallback на IP
+- **Rollback:** автоматический откат к `previous-<env>` при провале health_check
+- **Terraform destroy:** ручное удаление инфраструктуры
+- **S3 Backend:** состояние Terraform в Yandex Object Storage (`dev/terraform.tfstate`, `prod/terraform.tfstate`)
+- **Изоляция окружений:** отдельные VPC/subnets/NAT для dev и prod
 
-## 5. Соответствие целям ВКР
+### Ограничения ⚠️
 
-Цель ВКР: реализовать автоматизированный, надёжный и воспроизводимый GitLab CI pipeline для деплоя Django-приложения.
+- **Rollback:** хранится только один предыдущий тег (`previous-<env>`); первый деплой откатывать некуда
+- **DNS:** при `MANAGE_DNS=true` требуется делегирование NS на регистраторе для ACME challenge
+- **Health-check:** fallback на HTTP/IP при некоторых HTTPS-сбоях; strict-fail только для DNS-ошибок (`curl rc=6`)
+- **Секреты:** требуют настройки в GitLab CI/CD Variables (masked/protected)
 
-Оценка соответствия по фактическому состоянию: **9/10** (Готово к защите)
+## Тестирование
 
-Декомпозиция:
-- Автоматизация CI (`run_linters` + `run_pytest` + build/publish): ✅ Реализовано
-- Автоматизация IaC (terraform) и деплоя (ansible): ✅ Реализовано
-- Надёжность (health-check, rollback): ✅ Реализовано
-- Воспроизводимость production-деплоя: ✅ Реализовано
-- Production-архитектура (VPC, security groups, private subnet): ✅ Реализовано
-- Мониторинг (Grafana + Prometheus): ✅ Развёрнуто
+**9 тест-файлов:**
+- `django_educational_demo_application/users/tests/` (5 файлов: admin, forms, models, urls, views)
+- `tests/test_health_endpoint.py`
+- `tests/test_home_page.py`
+- `tests/test_merge_production_dotenvs_in_dotenv.py`
 
-Статус проекта: **Production-Ready**, **Готово к защите ВКР**.
+**Особенности:**
+- Тесты используют PostgreSQL (не совместимы с SQLite из-за sequence в миграциях `contrib/sites`)
+- CI запускает pytest с PostgreSQL service
 
-## 6. Текущие ограничения
-
-- Для `MANAGE_DNS=true` требуется делегирование NS у регистратора на DNS-зону из Yandex Cloud, иначе ACME challenge для TLS не пройдет.
-- `health_check` выполняет fallback на HTTP/IP при части HTTPS-сбоев; строгий fail включен для DNS-ошибок резолва домена (`curl rc=6`).
-- Откат ограничен одним тегом `previous-<env>`; на первом деплое окружения откатывать некуда.
-- Полное удаление инфраструктуры не выполняется автоматически; для этого предусмотрен ручной job `terraform_destroy`.
-- Для production обязательны секреты в CI/CD (`DJANGO_SECRET_KEY`, `DB_PASSWORD`, registry credentials).
-- Чувствительные значения не должны храниться в git: используйте GitLab CI/CD Variables (masked/protected) и локальные секреты вне репозитория.
-- Если секреты ранее попадали в историю git, их нужно ротировать (ключи/пароли/токены) и считать скомпрометированными.
-- Telegram-уведомления требуют настройки CI/CD Variables: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (рекомендуется `masked/protected`, environment-scoped).
-- Для `dev/prod` нужно настроить environment-scoped переменные в GitLab (`APP_DOMAIN`, `DJANGO_SECRET_KEY`, `DB_PASSWORD` и т.д.).
-- `APP_DOMAIN` обязателен: при отсутствии или невалидном формате `terraform_apply` завершится ошибкой.
-
-## 7. Статус проекта
-
-**Production-Ready:** ✅ Да, при корректно настроенных DNS-записях и выпуске TLS-сертификата.
-
-**Текущая версия:** 1.2.3
-
-**Статус для ВКР:** Готово к защите (9/10)
-
-Проект полностью реализует заявленные цели:
-- Автоматизированный CI/CD pipeline (test/build/`publish_latest || terraform_apply`/deploy/health_check/rollback/notify)
-- Infrastructure as Code (Terraform)
-- Configuration Management (Ansible)
-- Health-check и автоматический rollback
-- Production-архитектура (VPC, security groups, private subnet, NAT)
-- Мониторинг (Grafana + Prometheus)
-
-## 8. Тестирование
-
-Фактически присутствуют:
-- 8 test-файлов (`users` + `tests/test_merge_production_dotenvs_in_dotenv.py` + `tests/test_health_endpoint.py` + `tests/test_home_page.py`).
-
-Особенности:
-- Миграция `contrib/sites` использует PostgreSQL sequence (`django_site_id_seq`), из-за чего тесты не совместимы с SQLite.
-- CI настроен на PostgreSQL service, что соответствует этим ограничениям.
-
-## 9. Минимальные шаги для локального запуска (текущее состояние)
+## Локальный запуск
 
 ```bash
 uv venv
@@ -173,63 +157,9 @@ uv run python manage.py migrate
 uv run python manage.py runserver
 ```
 
-Для production-настроек обязательно задать env-переменные (`DJANGO_SECRET_KEY`, `DJANGO_ADMIN_URL`, `DJANGO_ALLOWED_HOSTS` и др.).
+Production-переменные: `DJANGO_SECRET_KEY`, `DJANGO_ADMIN_URL`, `DJANGO_ALLOWED_HOSTS` и др.
 
-## 10. Автоматизированное развертывание с DNS и TLS (актуально)
-
-В проект добавлен полностью автоматизированный контур `Terraform -> Ansible -> HTTPS health-check -> Telegram notify`:
-- Terraform создаёт/обновляет инфраструктуру и (опционально) DNS в Yandex Cloud.
-- `terraform_apply` формирует `ansible/inventory/hosts.generated.ini` из `terraform output`.
-- Ansible разворачивает приложение через Docker Compose и reverse-proxy `Caddy`.
-- Caddy автоматически получает/обновляет TLS-сертификат Let's Encrypt для домена.
-- `health_check` проверяет `https://<APP_DOMAIN>/health`.
-- `notify` отправляет результат pipeline в Telegram.
-- Полное удаление инфраструктуры выполняется вручную через job `terraform_destroy`.
-
-### Архитектурная модель dev/prod (separate network)
-
-- `prod` и `dev` используют полностью независимые сети (отдельные VPC/subnets/NAT).
-- Каждое окружение имеет собственный Terraform state (`prod/terraform.tfstate` и `dev/terraform.tfstate`) и не зависит от remote state другого окружения.
-- Такой подход повышает изоляцию окружений и убирает связность по порядку деплоя (`main` и `dev/develop` можно разворачивать независимо).
-
-## 11. Текущий статус проекта (Production-Ready)
-
-### Реализовано полностью ✅
-- **CI Pipeline:** test (`run_linters` + `run_pytest`, параллельно) → build → (`publish_latest` || `terraform_apply`) → deploy (после обоих) → health_check → rollback/notify (полностью автоматизировано)
-- **Terraform IaC:** VPC, subnets (public/private), NAT Gateway, security groups, VM (app/db/monitoring), опциональная DNS-зона
-- **Ansible деплой:** idempotent-роли для app, db, monitoring; авто-определение docker-compose команды
-- **Image Tagging:** commit SHA + `latest-dev/latest-prod` + `previous-dev/previous-prod` (для rollback)
-- **Health-check:** HTTPS проверка /health и главной страницы с fallback на IP
-- **Rollback:** автоматический откат к `previous-<env>` при провале health_check
-- **Terraform destroy:** ручное удаление инфраструктуры
-- **S3 Backend:** состояние Terraform в Yandex Object Storage с разделением state по ключам `dev/terraform.tfstate` и `prod/terraform.tfstate`
-- **Public IP strategy:** статический публичный IP назначается только `app` (по одному на `dev` и `prod`), `monitoring` всегда использует динамический публичный IP
-- **Security Groups:** минимальные ingress правила (HTTP/HTTPS/SSH/Postgres)
-- **Сеть:** у `prod` и `dev` отдельные VPC/subnets/NAT (изоляция окружений)
-- **Тестирование:** pytest (8 test-файлов), PostgreSQL service в CI
-
-### Позиционирование для ВКР
-**Оценка соответствия целям ВКР: 9/10**
-
-| Требование | Статус |
-|---|---|
-| Контейнеризация (Docker) | ✅ Реализовано |
-| CI-пайплайн (GitLab CI) | ✅ Реализовано |
-| Публикация в Registry | ✅ Реализовано |
-| Автотестирование (pytest) | ✅ Реализовано |
-| Rollback (on_failure) | ✅ Реализовано |
-| Infrastructure as Code (Terraform) | ✅ Реализовано |
-| Configuration Management (Ansible) | ✅ Реализовано |
-| Health-check перед переключением | ✅ Реализовано |
-| Разделение сред (dev/prod) | ✅ Реализовано через branch-based rules |
-| Monitoring (Grafana/Prometheus) | ✅ Развёрнуто на Monitoring VM |
-| Security (Security Groups, private subnet) | ✅ Реализовано |
-| Terraform state в S3 | ✅ Реализовано |
-
-**Как DevOps-учебный проект: 9/10**
-**Как ВКР уровня ITMO (магистратура DevOps): 9/10**
-
-### Архитектурная схема
+## Архитектура инфраструктуры
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -278,44 +208,44 @@ uv run python manage.py runserver
                     └───────────────┘
 ```
 
-### Что было улучшено (2026)
-- ✅ Исправлена ошибка Ansible с `docker_compose_pkg` (Ubuntu 24.04 compatibility)
-- ✅ HTTPS-доступ по домену работает при корректных DNS-записях и доступности ACME challenge
-- ✅ Полностью автоматический TLS через Caddy + Let's Encrypt
-- ✅ Rollback через previous tag реализован и протестирован
-- ✅ Добавлено разделение `dev/prod` (branch rules + отдельные terraform state + env-specific image tags)
-- ✅ `dev` и `prod` переведены на отдельные VPC/subnets/NAT (изоляция окружений)
-- ✅ В `terraform_apply` добавлена валидация `APP_DOMAIN` (обязательная переменная, проверка формата)
-- ✅ В `health_check` добавлен hard-fail при `curl rc=6` (домен не резолвится)
+## Конфигурация
 
-### Новые переменные Terraform
+### Переменные Terraform
 
-- `app_domain` - FQDN приложения, например `app.example.com`
-- `manage_dns` - `true/false`, управлять ли DNS-зоной и A-записью через Terraform
-- `dns_zone` - базовая зона, например `example.com`
-- `dns_zone_resource_name` - имя ресурса DNS-зоны в Yandex Cloud
-- `environment` - имя окружения (`dev`/`prod`) для префиксов ресурсов
+| Переменная | Описание | Пример |
+|---|---|---|
+| `app_domain` | FQDN приложения | `app.example.com` |
+| `manage_dns` | Управлять DNS-зоной через Terraform | `true`/`false` |
+| `dns_zone` | Базовая DNS-зона | `example.com` |
+| `dns_zone_resource_name` | Имя ресурса DNS-зоны | `diploma-zone-dev` |
+| `environment` | Имя окружения | `dev`/`prod` |
 
-### Важные CI/CD переменные GitLab
+### Переменные GitLab CI/CD
 
-- `APP_DOMAIN` - домен приложения (обязательная environment-scoped переменная)
-- `MANAGE_DNS` - `true`/`false`
-- `DNS_ZONE` - зона для DNS
-- `DNS_ZONE_RESOURCE_NAME` - имя зоны в YC DNS
-- `DJANGO_SECRET_KEY` - секрет Django
-- `DJANGO_ADMIN_URL` - URL админки (например `admin/`)
-- `DB_USER`, `DB_PASSWORD`, `DB_NAME` - параметры БД
-- `TLS_ACME_EMAIL` - email для Let's Encrypt
+| Переменная | Описание | Scope |
+|---|---|---|
+| `APP_DOMAIN` | Домен приложения (обязательная) | environment |
+| `MANAGE_DNS` | Управление DNS (`true`/`false`) | environment |
+| `DNS_ZONE` | DNS-зона | environment |
+| `DNS_ZONE_RESOURCE_NAME` | Имя зоны в YC DNS | environment |
+| `DJANGO_SECRET_KEY` | Секрет Django | environment, masked |
+| `DJANGO_ADMIN_URL` | URL админки | environment |
+| `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Параметры БД | environment, masked |
+| `TLS_ACME_EMAIL` | Email для Let's Encrypt | environment |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Уведомления | masked |
+| `YC_SERVICE_ACCOUNT_KEY` | Ключ сервисного аккаунта | masked |
+| `SSH_PUBLIC_KEY`, `SSH_PRIVATE_KEY` | SSH ключи | masked |
+| `YC_STORAGE_ACCESS_KEY`, `YC_STORAGE_SECRET_KEY` | S3 backend | masked |
 
-Переменная `DEPLOY_ENV` вычисляется из ветки:
-- `main` -> `prod`
-- `dev`/`develop` -> `dev`
+**Определение окружения в зависимости от Git branch:**
+- `main` → `prod`
+- `dev`/`develop` → `dev`
 
 ### DNS делегирование
 
-Если `MANAGE_DNS=true`, Terraform создаёт публичную DNS-зону.
-Terraform отдаёт в output:
+При `MANAGE_DNS=true` Terraform создаёт публичную DNS-зону и выводит:
 - `dns_zone_id`
 - `dns_zone_name`
-- `dns_delegation_name_servers` (по умолчанию `ns1.yandexcloud.net.` и `ns2.yandexcloud.net.`)
-Без делегирования Let's Encrypt не сможет пройти HTTP-01 challenge.
+- `dns_delegation_name_servers` (NS-серверы)
+
+Требуется делегирование NS у регистратора для работы ACME challenge (Let's Encrypt).
