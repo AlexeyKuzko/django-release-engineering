@@ -1,18 +1,19 @@
 # Deployment of Educational Django Application project
-Проект, демонстрирующий использование GitLab CI/CD для развертывания простого Django веб-приложения.
+Проект демонстрирует построение автоматизированного GitLab CI/CD pipeline для развертывания Django веб-приложения в Yandex Cloud.
 
 ## 1. Назначение проекта
-Репозиторий содержит Django-приложение и CI/CD-обвязку для:
-- сборки и публикации Docker-образа в GitLab Container Registry;
-- развёртывания через Terraform + Ansible;
-- базовой проверки доступности после деплоя;
-- попытки отката при неуспешной проверке.
+Репозиторий содержит Django-приложение и CI/CD pipeline для:
+- автоматической сборки и публикации Docker-образа в GitLab Container Registry;
+- развёртывания инфраструктуры через Terraform;
+- конфигурации и деплоя через Ansible;
+- проверки доступности после деплоя (health-check);
+- автоматического отката при неудачной проверке.
 
 Разделение ответственности:
-- GitLab CI: оркестрация
-- Terraform: создание инфраструктуры
-- Ansible: конфигурация и доставка
-- Docker Compose: запуск сервисов на App VM и Monitoring VM
+- **GitLab CI** — оркестрация пайплайна (последовательность этапов);
+- **Terraform** — создание инфраструктуры (VPC, VM, security groups);
+- **Ansible** — конфигурация виртуальных машин и запуск сервисов;
+- **Docker Compose** — запуск контейнеров на виртуальных машинах.
 
 ## 2. Архитектура проекта
 ### Используемые технологии:
@@ -36,57 +37,91 @@
 - `Ansible` (директория `ansible/`) для конфигурации хостов и запуска сервисов.
 - Шаблоны Docker Compose в Ansible-ролях для запуска сервисов на VM.
 
-
 ## 3. Архитектура CI/CD
-### Общая схема пайплайна:
+### Общая схема пайплайна
 
 ```mermaid
 flowchart LR
-    A[test: run_linters] --> C[build]
-    B[test: run_pytest] --> C
+    subgraph Stage_Test ["test"]
+        A1[run_linters]
+        A2[run_pytest]
+    end
 
-    C --> D[publish]
-    C --> E[terraform_apply]
-    E -. manual .-> K[terraform_destroy]
+    subgraph Stage_Build ["build"]
+        B1[build_image]
+        B2[publish]
+    end
 
-    D --> F[ansible_deploy]
-    E --> F
-    F --> G[health_check]
+    subgraph Stage_Infra ["infra"]
+        C1[terraform_apply]
+        C2[terraform_destroy]
+    end
 
-    G -->|success| L[notify_telegram_success]
-    G -->|failure| I[notify_telegram_failure]
-    I --> M[rollback]
+    subgraph Stage_Deploy ["deploy"]
+        D1[ansible_deploy]
+        D2[health_check]
+        D3[rollback]
+    end
 
-    style L fill:#4ade80
-    style M fill:#4ade80
-    style I fill:#fbbf24
+    subgraph Stage_Notify ["notify"]
+        E1[notify_telegram_success]
+        E2[notify_telegram_failure]
+    end
+
+    A1 --> B1
+    A2 --> B1
+    B1 --> B2
+    B1 --> C1
+    B2 --> D1
+    C1 -. manual .-> C2
+    C1 --> D1
+    D1 --> D2
+    D2 -->|success| E1
+    D2 -->|failure| D3
+    D3 --> E2
+
+    style D3 fill:green
+    style E1 fill:green
+    style E2 fill:orange
 ```
-Примечание: `rollback` дополнительно использует артефакты из `publish_latest` и `terraform_apply` (`needs` в `.gitlab-ci.yml`).
-### Назначение этапов (stage) пайплайна:
-- `test` - параллельный запуск `run_linters` (pre-commit-hooks, django-upgrade, ruff, djLint) и `run_pytest` (pytest)
-- `build` - сборка Docker-образа приложения и push в Container Registry с тегом commit SHA
-- `publish` - публикация тегированного образа в GitLab Container Registry
-- `terraform` - создание инфраструктуры для деплоя (Terraform apply) и ручное удаление (Terraform destroy)
-- `deploy` - запуск Ansible-плейбука для деплоя приложения, БД и мониторинга
-- `health_check` - проверка `/health` и главной страницы у задеплоенного приложения
-- `rollback` - в случае провала `health_check` осуществляет откат к предыдущему образу из Container Registry
-- `notify` - отправка уведомления в [Telegram](https://t.me/dedapp_notifications) по итогам pipeline (`success`/`failure`)
+
+**Примечания:**
+1) Этапы `publish` и `terraform_apply` выполняются параллельно после `build`.
+2) Этап `notify_telegram_failure` выполняется не только после `rollback`, но и при неудаче на любом из предыдущих этапов с указанием конкретного failed этапа.
+
+### Назначение этапов (stage) пайплайна
+
+| Этап | Задачи |
+|---|---|
+| `test` | Верификация кода: запуск линтеров (`run_linters`) и тестов (`run_pytest`) параллельно |
+| `build` | Сборка Docker-образа через Kaniko и push в GitLab Container Registry с тегом commit SHA |
+| `publish` | Тегирование образа: `latest-dev`/`latest-prod`, сохранение предыдущего как `previous-dev`/`previous-prod` |
+| `terraform` | Создание инфраструктуры (Terraform apply) и ручное удаление (Terraform destroy) |
+| `deploy` | Запуск Ansible-плейбука для развёртывания приложения, БД и мониторинга |
+| `health_check` | Проверка доступности `/health` и главной страницы через HTTPS |
+| `rollback` | Откат к предыдущему образу (`previous-<env>`) при провале health-check |
+| `notify` | Отправка уведомления в Telegram об успехе/неудаче пайплайна |
 
 
 ### Что происходит на каждом из этапов pipeline
 
-| Stage | Job | Когда запускается                                            | Что выполняется | Результат |
-|---|---|--------------------------------------------------------------|---|---|
-| `test` | `run_linters` | При каждом push в репозиторий, параллельно с `run_pytest` | Образ `ghcr.io/astral-sh/uv:python3.13-bookworm`; установка `git`; запуск `uv tool run pre-commit==4.5.1 run --show-diff-on-failure --color=always --all-files` | Проверка качества кода, при ошибке пайплайн останавливается |
-| `test` | `run_pytest` | При каждом push в репозиторий, параллельно с `run_linters` | Образ `ghcr.io/astral-sh/uv:python3.13-bookworm`; сервис `postgres:15`; настройка `DATABASE_URL`; установка `build-essential`, `libpq-dev`; `uv sync --locked`; `uv run pytest` | Проверка корректности тестами, при падении тестов дальнейшие стадии не запускаются |
-| `build` | `build_image` | После успешного завершения `run_linters` и `run_pytest` (`needs`) | Сборка через Kaniko: создание `/kaniko/.docker/config.json`; запуск `/kaniko/executor` с `--context "$CI_PROJECT_DIR"`, `--dockerfile "$CI_PROJECT_DIR/Dockerfile"`, `--destination "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"` (`IMAGE_TAG`), `--cache=true` | Docker-образ собирается и сразу пушится в GitLab Container Registry с тегом коммита |
-| `publish` | `publish_latest` | Для `main` (prod) и `dev/develop` (dev), после `build_image` (`needs`) | Образ `gcr.io/go-containerregistry/crane:debug`; `crane auth login` в `$CI_REGISTRY`; если `latest-$DEPLOY_ENV` существует — `crane tag ... previous-$DEPLOY_ENV`, затем `crane tag $IMAGE_TAG latest-$DEPLOY_ENV` | Образ с тегом коммита получает `latest-dev`/`latest-prod`, предыдущий хранится как `previous-dev`/`previous-prod` |
-| `terraform` | `terraform_destroy` | Для `main` (prod) и `dev/develop` (dev), вручную (`when: manual`) | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init` с backend key `${DEPLOY_ENV}/terraform.tfstate`; `terraform destroy -auto-approve` | Полное удаление инфраструктуры по выбранному окружению |
-| `terraform` | `terraform_apply` | Для `main` (prod) и `dev/develop` (dev), после `build_image` (`needs`), параллельно с `publish_latest` | Образ `hashicorp/terraform:1.6`; переход в `infra`; `terraform init` с backend key `${DEPLOY_ENV}/terraform.tfstate`; `terraform validate`; `terraform plan -out=tfplan`; `terraform apply -auto-approve tfplan`; сохранение артефактов | Для каждого окружения создаётся собственная сеть (VPC/subnets/NAT), VM/SG и (опционально) DNS |
-| `deploy` | `ansible_deploy` | Для `main` (prod) и `dev/develop` (dev), после `publish_latest` и `terraform_apply` (`needs`) | Образ `python:3.12-slim`; `pip install ansible`; переход в `ansible`; `ansible-playbook site.yml` с `--extra-vars`: `image=$IMAGE_TAG`, `registry_url=$CI_REGISTRY`, `registry_user=$CI_REGISTRY_USER`, `registry_password=$CI_REGISTRY_PASSWORD` | Попытка развернуть приложение и сопутствующие сервисы на подготовленной инфраструктуре |
-| `health_check` | `health_check` | Для `main` (prod) и `dev/develop` (dev), после `ansible_deploy` (`needs`) | Образ `curlimages/curl:latest`; проверки `curl -f https://$APP_DOMAIN/health` и `curl -f https://$APP_DOMAIN/` (с fallback на IP) | Если домен не резолвится (`curl rc=6`) стадия падает; при временных TLS-проблемах возможен non-blocking проход по HTTP/IP fallback |
-| `rollback` | `rollback` | Для `main` (prod) и `dev/develop` (dev), `when: on_failure` | Образ `python:3.12-slim`; установка `ansible`; переход в `ansible`; запуск `ansible-playbook site.yml` с `image=$PREVIOUS_IMAGE` и параметрами `registry_url`, `registry_user`, `registry_password` | Попытка отката на `previous-dev`/`previous-prod` (если тег существует) |
-| `notify` | `notify_telegram_success` / `notify_telegram_failure` | Для `main` (prod) и `dev/develop` (dev), `when: on_success` / `when: on_failure` | Образ `curlimages/curl:latest`; POST в Telegram Bot API `sendMessage` с данными pipeline; использует `TELEGRAM_BOT_TOKEN` и `TELEGRAM_CHAT_ID` | Отправка уведомления об успешном/неуспешном деплое в Telegram |
+| Stage | Job | Когда запускается | Что выполняется | Результат |
+|---|---|---|---|---|
+| `test` | `run_linters` | При каждом push, параллельно с `run_pytest` | Образ `ghcr.io/astral-sh/uv:python3.13-bookworm`; установка `git`; запуск `pre-commit run --all-files` (hooks: ruff, djLint, django-upgrade) | Проверка стиля и качества кода; при ошибке пайплайн останавливается |
+| `test` | `run_pytest` | При каждом push, параллельно с `run_linters` | Образ `ghcr.io/astral-sh/uv:python3.13-bookworm`; сервис `postgres:15`; `DATABASE_URL`; установка зависимостей; `pytest` | Юнит-тесты модели User и health endpoint; при падении тестов пайплайн останавливается |
+| `build` | `build_image` | После `run_linters` и `run_pytest` (`needs`) | Kaniko: сборка образа по `Dockerfile`; push в GitLab Container Registry с тегом `$CI_COMMIT_SHA`; кэширование слоёв | Docker-образ собран и отправлен в Registry (тег SHA) |
+| `publish` | `publish_latest` | Для `main`/`dev/develop`, после `build_image` (`needs`) | Образ `gcr.io/go-containerregistry/crane:debug`; логин в Registry; если `latest-$DEPLOY_ENV` существует — тегирование в `previous-$DEPLOY_ENV`; тегирование текущего образа в `latest-$DEPLOY_ENV` | Образ получает тег `latest-dev`/`latest-prod`; предыдущий сохраняется как `previous-dev`/`previous-prod` для rollback |
+| `terraform` | `terraform_apply` | Для `main`/`dev/develop`, после `build_image` (`needs`), параллельно с `publish_latest` | Образ `hashicorp/terraform:1.6`; `terraform init/validate/plan/apply`; backend в S3 (`dev/terraform.tfstate`, `prod/terraform.tfstate`); генерация Ansible inventory | Создана инфраструктура: VPC/subnets/NAT/VM/SG; сгенерирован inventory для Ansible |
+| `terraform` | `terraform_destroy` | Для `main`/`dev/develop`, вручную (`when: manual`) | Образ `hashicorp/terraform:1.6`; `terraform destroy -auto-approve` | Полное удаление инфраструктуры окружения |
+| `deploy` | `ansible_deploy` | После `publish_latest` и `terraform_apply` (`needs`) | Образ `python:3.12-slim`; установка Ansible; запуск `ansible-playbook site.yml` с переменными образа, Registry credentials, домена | Развёрнуты сервисы на App VM, DB VM, Monitoring VM через Docker Compose |
+| `health_check` | `health_check` | После `ansible_deploy` (`needs`) | Образ `curlimages/curl:latest`; `curl -f https://$APP_DOMAIN/health` и `/` (fallback на IP при TLS-проблемах) | Проверка доступности приложения; при `curl rc=6` (DNS не резолвится) — fail |
+| `rollback` | `rollback` | При провале `health_check` (`when: on_failure`) | Образ `python:3.12-slim`; установка Ansible; запуск `ansible-playbook site.yml` с `image=$PREVIOUS_IMAGE` | Откат к `previous-dev`/`previous-prod` (если тег существует) |
+| `notify` | `notify_telegram_success` / `notify_telegram_failure` | При успехе/провале (`when: on_success` / `when: on_failure`) | Образ `curlimages/curl:latest`; POST в Telegram Bot API | Уведомление в Telegram о результате деплоя |
+
+**Стратегия тестирования:**
+- **В CI:** юнит-тесты (pytest) и статические анализаторы (pre-commit: ruff, djLint). Тесты запускаются с PostgreSQL service, что соответствует production-окружению.
+- **После деплоя:** health-check проверяет доступность `/health` и главной страницы.
+- **Интеграционные и регрессионные тесты:** выполняются вручную на dev-контуре (отдельная VPC) командой тестирования перед мерджем в `main`. Такой подход выбран для избежания переусложнения пайплайна (docker-in-docker для интеграционных тестов).
 
 
 
