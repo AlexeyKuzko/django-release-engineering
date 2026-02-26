@@ -85,11 +85,12 @@ flowchart LR
     style E2 fill:orange
 ```
 
-> **Примечание к схеме:** Диаграмма упрощена. В реальном пайплайне:
-> - `notify_telegram_success` запускается на `on_success` после любого этапа (не только после health_check)
-> - `notify_telegram_failure` запускается на `on_failure` при любой ошибке (не только после rollback)
+> **Для наглядности диаграмма упрощена**:
 > - `publish_latest` и `terraform_apply` выполняются параллельно после `build_image`
 > - `ansible_deploy` требует артефакты от `terraform_apply` и `publish_latest`
+> - `notify_telegram_success` запускается `on_success` - когда не осталось pending/failed jobs (не только после `health_check`)
+> - `notify_telegram_failure` запускается на `on_failure` при любой ошибке (не только после `rollback`)
+
 
 ### Этапы пайплайна
 
@@ -236,7 +237,7 @@ Production-переменные: `DJANGO_SECRET_KEY`, `DJANGO_ADMIN_URL`, `DJANG
 | `SSH_PUBLIC_KEY`, `SSH_PRIVATE_KEY` | SSH ключи | masked |
 | `YC_STORAGE_ACCESS_KEY`, `YC_STORAGE_SECRET_KEY` | S3 backend | masked |
 
-**Определение окружения:**
+**Определение окружения в зависимости от Git branch:**
 - `main` → `prod`
 - `dev`/`develop` → `dev`
 
