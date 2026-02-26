@@ -60,11 +60,20 @@
                     aria-label="Toggle navigation">
               <span class="navbar-toggler-icon"></span>
             </button>
-            <a class="navbar-brand" href="{% url 'home' %}">Django Educational Demo Application</a>
+            <a class="navbar-brand" href="{% url 'projects:dashboard' %}">Django Educational Demo Application</a>
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
               <ul class="navbar-nav mr-auto">
                 <li class="nav-item active">
-                  <a class="nav-link" href="{% url 'home' %}">Home <span class="visually-hidden">(current)</span></a>
+                  <a class="nav-link" href="{% url 'projects:dashboard' %}">Dashboard <span class="visually-hidden">(current)</span></a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="{% url 'projects:project_list' %}">Projects</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="{% url 'projects:course_list' %}">Courses</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="{% url 'projects:student_list' %}">Students</a>
                 </li>
                 <li class="nav-item">
                   <a class="nav-link" href="{% url 'about' %}">About</a>

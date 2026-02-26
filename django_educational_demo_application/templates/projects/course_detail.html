@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {{ course.code }} - Course Details
+{% endblock title %}
+{% block content %}
+  <div class="container mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a href="{% url 'projects:dashboard' %}">Dashboard</a>
+        </li>
+        <li class="breadcrumb-item">
+          <a href="{% url 'projects:course_list' %}">Courses</a>
+        </li>
+        <li class="breadcrumb-item active">{{ course.code }}</li>
+      </ol>
+    </nav>
+    <!-- Course Header -->
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h1 class="h3 mb-0">{{ course.code }} - {{ course.name }}</h1>
+        <div>
+          <a href="{% url 'projects:course_update' course.pk %}"
+             class="btn btn-sm btn-outline-primary">Edit</a>
+          <a href="{% url 'projects:course_delete' course.pk %}"
+             class="btn btn-sm btn-outline-danger">Delete</a>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="card-text">{{ course.description }}</p>
+        <div class="row">
+          <div class="col-md-3">
+            <strong>Start Date:</strong>
+            <br />
+            {{ course.start_date|date:"M d, Y" }}
+          </div>
+          <div class="col-md-3">
+            <strong>End Date:</strong>
+            <br />
+            {{ course.end_date|date:"M d, Y" }}
+          </div>
+          <div class="col-md-3">
+            <strong>Duration:</strong>
+            <br />
+            {{ course.duration_days }} days
+          </div>
+          <div class="col-md-3">
+            <strong>Status:</strong>
+            <br />
+            <span class="badge bg-{% if course.status == 'active' %}success{% elif course.status == 'upcoming' %}warning{% else %}secondary{% endif %}">
+              {{ course.get_status_display|default:course.status }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Statistics -->
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <div class="card bg-primary text-white">
+          <div class="card-body text-center">
+            <h5 class="card-title">Total Projects</h5>
+            <h2 class="mb-0">{{ stats.total_projects }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card bg-success text-white">
+          <div class="card-body text-center">
+            <h5 class="card-title">Completed</h5>
+            <h2 class="mb-0">{{ stats.completed_projects }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+          <div class="card-body text-center">
+            <h5 class="card-title">In Progress</h5>
+            <h2 class="mb-0">{{ stats.in_progress_projects }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card bg-info text-white">
+          <div class="card-body text-center">
+            <h5 class="card-title">Average Score</h5>
+            <h2 class="mb-0">{{ stats.average_score|floatformat:1 }}</h2>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <!-- Projects List -->
+      <div class="col-md-8">
+        <div class="card mb-4">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Projects</h5>
+            <a href="{% url 'projects:project_create' %}?course={{ course.pk }}"
+               class="btn btn-sm btn-primary">
+              <i class="bi bi-plus-circle"></i> New Project
+            </a>
+          </div>
+          <div class="card-body">
+            {% if projects %}
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Student</th>
+                      <th>Status</th>
+                      <th>Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for project in projects %}
+                      <tr>
+                        <td>
+                          <a href="{{ project.get_absolute_url }}">{{ project.title }}</a>
+                        </td>
+                        <td>{{ project.student.user.username }}</td>
+                        <td>
+                          <span class="badge bg-{% if project.status == 'completed' %}success{% elif project.status == 'in_progress' %}warning{% elif project.status == 'draft' %}secondary{% else %}info{% endif %}">
+                            {{ project.get_status_display }}
+                          </span>
+                        </td>
+                        <td>
+                          {% if project.score %}
+                            <span class="badge bg-success">{{ project.score }}</span>
+                          {% else %}
+                            <span class="text-muted">-</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="text-muted">No projects in this course yet.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <!-- Enrolled Students -->
+      <div class="col-md-4">
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="mb-0">Enrolled Students</h5>
+          </div>
+          <div class="card-body">
+            {% if enrollments %}
+              <ul class="list-group list-group-flush">
+                {% for enrollment in enrollments %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <a href="{{ enrollment.student.get_absolute_url }}">{{ enrollment.student.user.username }}</a>
+                    <small class="text-muted">{{ enrollment.student.student_id }}</small>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-muted">No students enrolled yet.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

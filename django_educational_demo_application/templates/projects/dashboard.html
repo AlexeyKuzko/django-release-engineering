@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block title %}
+  Dashboard - Educational Project Management
+{% endblock title %}
+{% block content %}
+  <div class="container mt-4">
+    <h1 class="mb-4">Educational Project Management Dashboard</h1>
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <div class="card bg-primary text-white">
+          <div class="card-body">
+            <h5 class="card-title">Total Projects</h5>
+            <h2 class="mb-0">{{ total_projects }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card bg-success text-white">
+          <div class="card-body">
+            <h5 class="card-title">Completed</h5>
+            <h2 class="mb-0">{{ completed_projects }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+          <div class="card-body">
+            <h5 class="card-title">In Progress</h5>
+            <h2 class="mb-0">{{ in_progress_projects }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card bg-danger text-white">
+          <div class="card-body">
+            <h5 class="card-title">Overdue</h5>
+            <h2 class="mb-0">{{ overdue_projects }}</h2>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5>Quick Actions</h5>
+          </div>
+          <div class="card-body">
+            <a href="{% url 'projects:project_create' %}"
+               class="btn btn-primary me-2">
+              <i class="bi bi-plus-circle"></i> New Project
+            </a>
+            <a href="{% url 'projects:course_create' %}"
+               class="btn btn-outline-primary me-2">
+              <i class="bi bi-book"></i> New Course
+            </a>
+            <a href="{% url 'projects:project_list' %}"
+               class="btn btn-outline-secondary me-2">
+              <i class="bi bi-list"></i> View All Projects
+            </a>
+            <a href="{% url 'projects:course_list' %}"
+               class="btn btn-outline-secondary">
+              <i class="bi bi-journal"></i> View Courses
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <!-- Recent Projects -->
+      <div class="col-md-8">
+        <div class="card mb-4">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Recent Projects</h5>
+            <a href="{% url 'projects:project_list' %}"
+               class="btn btn-sm btn-outline-primary">View All</a>
+          </div>
+          <div class="card-body">
+            {% if recent_projects %}
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Student</th>
+                      <th>Course</th>
+                      <th>Status</th>
+                      <th>Progress</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for project in recent_projects %}
+                      <tr>
+                        <td>
+                          <a href="{{ project.get_absolute_url }}">{{ project.title }}</a>
+                        </td>
+                        <td>{{ project.student.user.username }}</td>
+                        <td>{{ project.course.code }}</td>
+                        <td>
+                          <span class="badge bg-{% if project.status == 'completed' %}success{% elif project.status == 'in_progress' %}warning{% elif project.status == 'draft' %}secondary{% else %}info{% endif %}">
+                            {{ project.get_status_display }}
+                          </span>
+                        </td>
+                        <td>
+                          <div class="progress progress-fixed-height">
+                            <div class="progress-bar"
+                                 role="progressbar"
+                                 style="width: {{ project.progress_percentage }}%"
+                                 aria-valuenow="{{ project.progress_percentage }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">{{ project.progress_percentage }}%</div>
+                          </div>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="text-muted">No projects yet. Create your first project!</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <!-- Course Statistics -->
+      <div class="col-md-4">
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="mb-0">Active Courses</h5>
+          </div>
+          <div class="card-body">
+            {% if course_stats %}
+              <ul class="list-group list-group-flush">
+                {% for course in course_stats %}
+                  <li class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div>
+                        <a href="{{ course.get_absolute_url }}" class="fw-bold">{{ course.code }}</a>
+                        <p class="mb-0 text-muted small">{{ course.name }}</p>
+                      </div>
+                      <div class="text-end">
+                        <span class="badge bg-primary">{{ course.project_count }} projects</span>
+                      </div>
+                    </div>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-muted">No active courses.</p>
+            {% endif %}
+          </div>
+        </div>
+        <!-- Top Students -->
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">Top Students</h5>
+          </div>
+          <div class="card-body">
+            {% if top_students %}
+              <ul class="list-group list-group-flush">
+                {% for student in top_students %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                      <a href="{{ student.get_absolute_url }}">{{ student.user.username }}</a>
+                      <small class="text-muted d-block">{{ student.student_id }}</small>
+                    </div>
+                    <div class="text-end">
+                      <span class="badge bg-success">{{ student.avg_score|floatformat:1 }}</span>
+                      <small class="text-muted d-block">{{ student.project_count }} projects</small>
+                    </div>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-muted">No student data yet.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- About Section -->
+    <div class="row mt-4">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5>About This System</h5>
+          </div>
+          <div class="card-body">
+            <p>
+              This Educational Project Management System is designed to track student projects,
+              manage courses, and monitor progress throughout the educational program.
+            </p>
+            <div class="row">
+              <div class="col-md-4">
+                <h6>Key Features</h6>
+                <ul>
+                  <li>Project lifecycle management</li>
+                  <li>Status workflow tracking</li>
+                  <li>Task management</li>
+                  <li>Score evaluation</li>
+                </ul>
+              </div>
+              <div class="col-md-4">
+                <h6>For Students</h6>
+                <ul>
+                  <li>View assigned projects</li>
+                  <li>Track progress</li>
+                  <li>Manage tasks</li>
+                  <li>Submit work</li>
+                </ul>
+              </div>
+              <div class="col-md-4">
+                <h6>For Instructors</h6>
+                <ul>
+                  <li>Create courses</li>
+                  <li>Assign projects</li>
+                  <li>Review submissions</li>
+                  <li>Evaluate scores</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
