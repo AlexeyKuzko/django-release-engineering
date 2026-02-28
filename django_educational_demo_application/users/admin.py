@@ -25,10 +25,19 @@ class StudentInline(admin.StackedInline):
     verbose_name_plural = _("Student Profile")
     fields = ["student_id", "group"]
     readonly_fields = ["student_id"]
+    extra = 0
 
     def has_add_permission(self, request, obj=None) -> bool:
         """Prevent manual addition - student profile is created automatically."""
         return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        """Allow changing group field for existing students."""
+        return True
+
+    def has_view_permission(self, request, obj=None) -> bool:
+        """Only show inline for existing users with a student profile."""
+        return obj is not None and hasattr(obj, "student_profile")
 
 
 @admin.register(User)

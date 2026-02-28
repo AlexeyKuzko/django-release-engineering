@@ -7,7 +7,6 @@ from django_educational_demo_application.projects.models import Course
 from django_educational_demo_application.projects.models import Enrollment
 from django_educational_demo_application.projects.models import Project
 from django_educational_demo_application.projects.models import ProjectStatusLog
-from django_educational_demo_application.projects.models import Student
 from django_educational_demo_application.projects.models import Task
 from django_educational_demo_application.users.tests.factories import UserFactory
 
@@ -28,11 +27,12 @@ def course(db):
 def student(db):
     """Create a test student."""
     user = UserFactory()
-    return Student.objects.create(
-        user=user,
-        student_id="STU001",
-        group="Group A",
-    )
+    # Student profile is automatically created by signal
+    student_profile = user.student_profile
+    student_profile.student_id = "STU001"
+    student_profile.group = "Group A"
+    student_profile.save()
+    return student_profile
 
 
 @pytest.fixture
