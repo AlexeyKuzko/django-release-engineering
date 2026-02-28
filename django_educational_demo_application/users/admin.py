@@ -64,3 +64,9 @@ class UserAdmin(auth_admin.UserAdmin):
     list_display = ["username", "name", "is_superuser"]
     search_fields = ["name"]
     inlines = [StudentInline]
+
+    def get_inlines(self, request, obj=None):
+        """Only show student inline for existing users."""
+        if obj is not None and hasattr(obj, "student_profile"):
+            return [StudentInline]
+        return []
