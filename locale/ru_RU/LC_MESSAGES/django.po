@@ -449,10 +449,8 @@ msgstr "Не зачислен ни на какие курсы."
 msgid "Search by username, student ID, or group"
 msgstr "Поиск по имени пользователя, ID студента или группе"
 
-#, fuzzy
-#| msgid "User"
 msgid "Username"
-msgstr "Пользователь"
+msgstr "Имя пользователя"
 
 msgid "Student pagination"
 msgstr "Пагинация студентов"
@@ -473,28 +471,20 @@ msgstr "E-Mail"
 msgid "MFA"
 msgstr "MFA"
 
-#, fuzzy
-#| msgid "Update Status"
 msgid "Update"
-msgstr "Обновить статус"
+msgstr "Обновить"
 
 msgid "Personal info"
 msgstr "Персональная информация"
 
-#, fuzzy
-#| msgid "No permissions"
 msgid "Permissions"
-msgstr "Нет разрешений"
+msgstr "Разрешения"
 
-#, fuzzy
-#| msgid "Start date"
 msgid "Important dates"
-msgstr "Дата начала"
+msgstr "Важные даты"
 
-#, fuzzy
-#| msgid "User"
 msgid "Users"
-msgstr "Пользователь"
+msgstr "Пользователи"
 
 msgid "This username has already been taken."
 msgstr "Это имя пользователя уже занято."
@@ -1085,13 +1075,8 @@ msgstr "Информация успешно обновлена"
 #~ msgid "No rights"
 #~ msgstr "Нет прав"
 
-#, fuzzy
 #~ msgid "No authority"
-#~ msgstr ""
-#~ "#-#-#-#-#  django.po (1.2.3)  #-#-#-#-#\n"
-#~ "Нет полномочий\n"
-#~ "#-#-#-#-#  django.po (1.2.3)  #-#-#-#-#\n"
-#~ "Нет авторитета"
+#~ msgstr "Нет полномочий"
 
 #~ msgid "No control"
 #~ msgstr "Нет контроля"
@@ -1107,14 +1092,8 @@ msgstr "Информация успешно обновлена"
 
 #~ msgid "No oversight"
 #~ msgstr "Нет надзора"
-
-#, fuzzy
 #~ msgid "No regulation"
-#~ msgstr ""
-#~ "#-#-#-#-#  django.po (1.2.3)  #-#-#-#-#\n"
-#~ "Нет регулирования\n"
-#~ "#-#-#-#-#  django.po (1.2.3)  #-#-#-#-#\n"
-#~ "Нет правила"
+#~ msgstr "Нет регулирования"
 
 #~ msgid "No governance"
 #~ msgstr "Нет управления"
@@ -1205,14 +1184,8 @@ msgstr "Информация успешно обновлена"
 
 #~ msgid "No exposure"
 #~ msgstr "Нет экспозиции"
-
-#, fuzzy
 #~ msgid "No display"
-#~ msgstr ""
-#~ "#-#-#-#-#  django.po (1.2.3)  #-#-#-#-#\n"
-#~ "Нет отображения\n"
-#~ "#-#-#-#-#  django.po (1.2.3)  #-#-#-#-#\n"
-#~ "Нет дисплея"
+#~ msgstr "Нет отображения"
 
 #~ msgid "No presentation"
 #~ msgstr "Нет презентации"
@@ -1879,14 +1852,8 @@ msgstr "Информация успешно обновлена"
 
 #~ msgid "No segments"
 #~ msgstr "Нет сегментов"
-
-#, fuzzy
 #~ msgid "No sections"
-#~ msgstr ""
-#~ "#-#-#-#-#  django.po (1.2.3)  #-#-#-#-#\n"
-#~ "Нет секций\n"
-#~ "#-#-#-#-#  django.po (1.2.3)  #-#-#-#-#\n"
-#~ "Нет разделов"
+#~ msgstr "Нет секций"
 
 #~ msgid "No portions"
 #~ msgstr "Нет порций"
@@ -1933,13 +1900,8 @@ msgstr "Информация успешно обновлена"
 #~ msgid "No groups"
 #~ msgstr "Нет групп"
 
-#, fuzzy
 #~ msgid "No series"
-#~ msgstr ""
-#~ "#-#-#-#-#  django.po (1.2.3)  #-#-#-#-#\n"
-#~ "Нет серий\n"
-#~ "#-#-#-#-#  django.po (1.2.3)  #-#-#-#-#\n"
-#~ "Нет серии"
+#~ msgstr "Нет серий"
 
 #~ msgid "No sequences"
 #~ msgstr "Нет последовательностей"
