@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 
+{% load i18n %}
+
 {% block title %}
-  {{ course.code }} - Course Details
+  {{ course.code }} - {% translate "Course Details" %}
 {% endblock title %}
 {% block content %}
   <div class="container mt-4">
@@ -9,10 +11,10 @@
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb">
         <li class="breadcrumb-item">
-          <a href="{% url 'projects:dashboard' %}">Dashboard</a>
+          <a href="{% url 'projects:dashboard' %}">{% translate "Dashboard" %}</a>
         </li>
         <li class="breadcrumb-item">
-          <a href="{% url 'projects:course_list' %}">Courses</a>
+          <a href="{% url 'projects:course_list' %}">{% translate "Courses" %}</a>
         </li>
         <li class="breadcrumb-item active">{{ course.code }}</li>
       </ol>
@@ -23,31 +25,31 @@
         <h1 class="h3 mb-0">{{ course.code }} - {{ course.name }}</h1>
         <div>
           <a href="{% url 'projects:course_update' course.pk %}"
-             class="btn btn-sm btn-outline-primary">Edit</a>
+             class="btn btn-sm btn-outline-primary">{% translate "Edit" %}</a>
           <a href="{% url 'projects:course_delete' course.pk %}"
-             class="btn btn-sm btn-outline-danger">Delete</a>
+             class="btn btn-sm btn-outline-danger">{% translate "Delete" %}</a>
         </div>
       </div>
       <div class="card-body">
         <p class="card-text">{{ course.description }}</p>
         <div class="row">
           <div class="col-md-3">
-            <strong>Start Date:</strong>
+            <strong>{% translate "Start Date" %}:</strong>
             <br />
             {{ course.start_date|date:"M d, Y" }}
           </div>
           <div class="col-md-3">
-            <strong>End Date:</strong>
+            <strong>{% translate "End Date" %}:</strong>
             <br />
             {{ course.end_date|date:"M d, Y" }}
           </div>
           <div class="col-md-3">
-            <strong>Duration:</strong>
+            <strong>{% translate "Duration" %}:</strong>
             <br />
-            {{ course.duration_days }} days
+            {{ course.duration_days }} {% translate "days" %}
           </div>
           <div class="col-md-3">
-            <strong>Status:</strong>
+            <strong>{% translate "Status" %}:</strong>
             <br />
             <span class="badge bg-{% if course.status == 'active' %}success{% elif course.status == 'upcoming' %}warning{% else %}secondary{% endif %}">
               {{ course.get_status_display|default:course.status }}
@@ -61,7 +63,7 @@
       <div class="col-md-3">
         <div class="card bg-primary text-white">
           <div class="card-body text-center">
-            <h5 class="card-title">Total Projects</h5>
+            <h5 class="card-title">{% translate "Total Projects" %}</h5>
             <h2 class="mb-0">{{ stats.total_projects }}</h2>
           </div>
         </div>
@@ -69,7 +71,7 @@
       <div class="col-md-3">
         <div class="card bg-success text-white">
           <div class="card-body text-center">
-            <h5 class="card-title">Completed</h5>
+            <h5 class="card-title">{% translate "Completed" %}</h5>
             <h2 class="mb-0">{{ stats.completed_projects }}</h2>
           </div>
         </div>
@@ -77,7 +79,7 @@
       <div class="col-md-3">
         <div class="card bg-warning text-dark">
           <div class="card-body text-center">
-            <h5 class="card-title">In Progress</h5>
+            <h5 class="card-title">{% translate "In Progress" %}</h5>
             <h2 class="mb-0">{{ stats.in_progress_projects }}</h2>
           </div>
         </div>
@@ -85,7 +87,7 @@
       <div class="col-md-3">
         <div class="card bg-info text-white">
           <div class="card-body text-center">
-            <h5 class="card-title">Average Score</h5>
+            <h5 class="card-title">{% translate "Average Score" %}</h5>
             <h2 class="mb-0">{{ stats.average_score|floatformat:1 }}</h2>
           </div>
         </div>
@@ -96,10 +98,10 @@
       <div class="col-md-8">
         <div class="card mb-4">
           <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Projects</h5>
+            <h5 class="mb-0">{% translate "Projects" %}</h5>
             <a href="{% url 'projects:project_create' %}?course={{ course.pk }}"
                class="btn btn-sm btn-primary">
-              <i class="bi bi-plus-circle"></i> New Project
+              <i class="bi bi-plus-circle"></i> {% translate "New Project" %}
             </a>
           </div>
           <div class="card-body">
@@ -108,10 +110,10 @@
                 <table class="table table-hover">
                   <thead>
                     <tr>
-                      <th>Title</th>
-                      <th>Student</th>
-                      <th>Status</th>
-                      <th>Score</th>
+                      <th>{% translate "Title" %}</th>
+                      <th>{% translate "Student" %}</th>
+                      <th>{% translate "Status" %}</th>
+                      <th>{% translate "Score" %}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -139,7 +141,7 @@
                 </table>
               </div>
             {% else %}
-              <p class="text-muted">No projects in this course yet.</p>
+              <p class="text-muted">{% translate "No projects in this course yet." %}</p>
             {% endif %}
           </div>
         </div>
@@ -148,7 +150,7 @@
       <div class="col-md-4">
         <div class="card mb-4">
           <div class="card-header">
-            <h5 class="mb-0">Enrolled Students</h5>
+            <h5 class="mb-0">{% translate "Enrolled Students" %}</h5>
           </div>
           <div class="card-body">
             {% if enrollments %}
@@ -161,7 +163,7 @@
                 {% endfor %}
               </ul>
             {% else %}
-              <p class="text-muted">No students enrolled yet.</p>
+              <p class="text-muted">{% translate "No students enrolled yet." %}</p>
             {% endif %}
           </div>
         </div>

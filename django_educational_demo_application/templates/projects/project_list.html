@@ -1,14 +1,16 @@
 {% extends "base.html" %}
 
+{% load i18n %}
+
 {% block title %}
-  Projects - Educational Project Management
+  {% translate "Projects" %} - {% translate "Educational Project Management Dashboard" %}
 {% endblock title %}
 {% block content %}
   <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h1>Projects</h1>
+      <h1>{% translate "Projects" %}</h1>
       <a href="{% url 'projects:project_create' %}" class="btn btn-primary">
-        <i class="bi bi-plus-circle"></i> New Project
+        <i class="bi bi-plus-circle"></i> {% translate "New Project" %}
       </a>
     </div>
     <!-- Filters -->
@@ -16,17 +18,17 @@
       <div class="card-body">
         <form method="get" class="row g-3">
           <div class="col-md-3">
-            <label class="form-label">Search</label>
+            <label class="form-label">{% translate "Search" %}</label>
             <input type="text"
                    name="search"
                    class="form-control"
-                   placeholder="Project title"
+                   placeholder="{% translate "Project title" %}"
                    value="{{ request.GET.search }}" />
           </div>
           <div class="col-md-2">
-            <label class="form-label">Status</label>
+            <label class="form-label">{% translate "Status" %}</label>
             <select name="status" class="form-select">
-              <option value="">All</option>
+              <option value="">{% translate "All" %}</option>
               {% for value, label in statuses %}
                 <option value="{{ value }}"
                         {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
@@ -34,9 +36,9 @@
             </select>
           </div>
           <div class="col-md-2">
-            <label class="form-label">Course</label>
+            <label class="form-label">{% translate "Course" %}</label>
             <select name="course" class="form-select">
-              <option value="">All</option>
+              <option value="">{% translate "All" %}</option>
               {% for course in courses %}
                 <option value="{{ course.id }}"
                         {% if request.GET.course == course.id|stringformat:"s" %}selected{% endif %}>
@@ -46,9 +48,9 @@
             </select>
           </div>
           <div class="col-md-2">
-            <label class="form-label">Priority</label>
+            <label class="form-label">{% translate "Priority" %}</label>
             <select name="priority" class="form-select">
-              <option value="">All</option>
+              <option value="">{% translate "All" %}</option>
               {% for value, label in priorities %}
                 <option value="{{ value }}"
                         {% if request.GET.priority == value %}selected{% endif %}>{{ label }}</option>
@@ -58,9 +60,9 @@
           <div class="col-md-2">
             <label class="form-label">&nbsp;</label>
             <div>
-              <button type="submit" class="btn btn-primary">Filter</button>
+              <button type="submit" class="btn btn-primary">{% translate "Filter" %}</button>
               <a href="{% url 'projects:project_list' %}"
-                 class="btn btn-outline-secondary">Clear</a>
+                 class="btn btn-outline-secondary">{% translate "Clear" %}</a>
             </div>
           </div>
           <div class="col-md-1">
@@ -70,7 +72,7 @@
                      name="overdue"
                      class="form-check-input"
                      {% if request.GET.overdue %}checked{% endif %} />
-              <label class="form-check-label">Overdue</label>
+              <label class="form-check-label">{% translate "Overdue" %}</label>
             </div>
           </div>
         </form>
@@ -84,15 +86,15 @@
             <table class="table table-hover">
               <thead>
                 <tr>
-                  <th>Title</th>
-                  <th>Student</th>
-                  <th>Course</th>
-                  <th>Status</th>
-                  <th>Priority</th>
-                  <th>Score</th>
-                  <th>Deadline</th>
-                  <th>Progress</th>
-                  <th>Actions</th>
+                  <th>{% translate "Title" %}</th>
+                  <th>{% translate "Student" %}</th>
+                  <th>{% translate "Course" %}</th>
+                  <th>{% translate "Status" %}</th>
+                  <th>{% translate "Priority" %}</th>
+                  <th>{% translate "Score" %}</th>
+                  <th>{% translate "Deadline" %}</th>
+                  <th>{% translate "Progress" %}</th>
+                  <th>{% translate "Actions" %}</th>
                 </tr>
               </thead>
               <tbody>
@@ -123,7 +125,9 @@
                     <td>
                       {% if project.deadline %}
                         {{ project.deadline|date:"M d, Y" }}
-                        {% if project.is_overdue %}<span class="badge bg-danger">Overdue</span>{% endif %}
+                        {% if project.is_overdue %}
+                          <span class="badge bg-danger">{% translate "Overdue" %}</span>
+                        {% endif %}
                       {% else %}
                         <span class="text-muted">-</span>
                       {% endif %}
@@ -140,7 +144,7 @@
                     </td>
                     <td>
                       <a href="{{ project.get_absolute_url }}"
-                         class="btn btn-sm btn-outline-primary">View</a>
+                         class="btn btn-sm btn-outline-primary">{% translate "View" %}</a>
                     </td>
                   </tr>
                 {% endfor %}
@@ -148,15 +152,15 @@
             </table>
           </div>
           {% if is_paginated %}
-            <nav aria-label="Project pagination">
+            <nav aria-label="{% translate "Project pagination" %}">
               <ul class="pagination justify-content-center">
                 {% if page_obj.has_previous %}
                   <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% translate "Previous" %}</a>
                   </li>
                 {% else %}
                   <li class="page-item disabled">
-                    <span class="page-link">Previous</span>
+                    <span class="page-link">{% translate "Previous" %}</span>
                   </li>
                 {% endif %}
                 {% for num in page_obj.paginator.page_range %}
@@ -172,18 +176,18 @@
                 {% endfor %}
                 {% if page_obj.has_next %}
                   <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">{% translate "Next" %}</a>
                   </li>
                 {% else %}
                   <li class="page-item disabled">
-                    <span class="page-link">Next</span>
+                    <span class="page-link">{% translate "Next" %}</span>
                   </li>
                 {% endif %}
               </ul>
             </nav>
           {% endif %}
         {% else %}
-          <p class="text-muted">No projects found.</p>
+          <p class="text-muted">{% translate "No projects found." %}</p>
         {% endif %}
       </div>
     </div>

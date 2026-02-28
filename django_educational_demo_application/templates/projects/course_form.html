@@ -1,12 +1,14 @@
 {% extends "base.html" %}
 
+{% load i18n %}
+
 {% block title %}
   {% if object %}
-    Edit
+    {% translate "Edit" %}
   {% else %}
-    Create
+    {% translate "Create" %}
   {% endif %}
-  Course
+  {% translate "Course" %}
 {% endblock title %}
 {% block content %}
   <div class="container mt-4">
@@ -16,11 +18,11 @@
           <div class="card-header">
             <h4 class="mb-0">
               {% if object %}
-                Edit
+                {% translate "Edit" %}
               {% else %}
-                Create
+                {% translate "Create" %}
               {% endif %}
-              Course
+              {% translate "Course" %}
             </h4>
           </div>
           <div class="card-body">
@@ -40,8 +42,8 @@
               {% endfor %}
               <div class="d-flex justify-content-between">
                 <a href="{% url 'projects:course_list' %}"
-                   class="btn btn-outline-secondary">Cancel</a>
-                <button type="submit" class="btn btn-primary">Save Course</button>
+                   class="btn btn-outline-secondary">{% translate "Cancel" %}</a>
+                <button type="submit" class="btn btn-primary">{% translate "Save Course" %}</button>
               </div>
             </form>
           </div>

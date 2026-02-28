@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 
+{% load i18n %}
+
 {% block title %}
-  Students - Educational Project Management
+  {% translate "Students" %} - {% translate "Educational Project Management Dashboard" %}
 {% endblock title %}
 {% block content %}
   <div class="container mt-4">
-    <h1 class="mb-4">Students</h1>
+    <h1 class="mb-4">{% translate "Students" %}</h1>
     <!-- Search -->
     <div class="card mb-4">
       <div class="card-body">
@@ -14,13 +16,13 @@
             <input type="text"
                    name="search"
                    class="form-control"
-                   placeholder="Search by username, student ID, or group"
+                   placeholder="{% translate "Search by username, student ID, or group" %}"
                    value="{{ request.GET.search }}" />
           </div>
           <div class="col-md-3">
-            <button type="submit" class="btn btn-primary">Search</button>
+            <button type="submit" class="btn btn-primary">{% translate "Search" %}</button>
             <a href="{% url 'projects:student_list' %}"
-               class="btn btn-outline-secondary">Clear</a>
+               class="btn btn-outline-secondary">{% translate "Clear" %}</a>
           </div>
         </form>
       </div>
@@ -33,12 +35,12 @@
             <table class="table table-hover">
               <thead>
                 <tr>
-                  <th>Username</th>
-                  <th>Student ID</th>
-                  <th>Group</th>
-                  <th>Projects</th>
-                  <th>Completed</th>
-                  <th>Actions</th>
+                  <th>{% translate "Username" %}</th>
+                  <th>{% translate "Student ID" %}</th>
+                  <th>{% translate "Group" %}</th>
+                  <th>{% translate "Projects" %}</th>
+                  <th>{% translate "Completed" %}</th>
+                  <th>{% translate "Actions" %}</th>
                 </tr>
               </thead>
               <tbody>
@@ -53,7 +55,7 @@
                     <td>{{ student.completed_count }}</td>
                     <td>
                       <a href="{{ student.get_absolute_url }}"
-                         class="btn btn-sm btn-outline-primary">View</a>
+                         class="btn btn-sm btn-outline-primary">{% translate "View" %}</a>
                     </td>
                   </tr>
                 {% endfor %}
@@ -61,15 +63,15 @@
             </table>
           </div>
           {% if is_paginated %}
-            <nav aria-label="Student pagination">
+            <nav aria-label="{% translate "Student pagination" %}">
               <ul class="pagination justify-content-center">
                 {% if page_obj.has_previous %}
                   <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% translate "Previous" %}</a>
                   </li>
                 {% else %}
                   <li class="page-item disabled">
-                    <span class="page-link">Previous</span>
+                    <span class="page-link">{% translate "Previous" %}</span>
                   </li>
                 {% endif %}
                 {% for num in page_obj.paginator.page_range %}
@@ -85,18 +87,18 @@
                 {% endfor %}
                 {% if page_obj.has_next %}
                   <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">{% translate "Next" %}</a>
                   </li>
                 {% else %}
                   <li class="page-item disabled">
-                    <span class="page-link">Next</span>
+                    <span class="page-link">{% translate "Next" %}</span>
                   </li>
                 {% endif %}
               </ul>
             </nav>
           {% endif %}
         {% else %}
-          <p class="text-muted">No students found.</p>
+          <p class="text-muted">{% translate "No students found." %}</p>
         {% endif %}
       </div>
     </div>

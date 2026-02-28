@@ -1,0 +1,2864 @@
+# Translations for the Django Educational Demo Application project
+# Copyright (C) 2026 Alexey Kuzko
+# Alexey Kuzko <466399@niuitmo.ru>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.2.3\n"
+"Language: ru-RU\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n%100>=11 && n%100<=14)? 2 : 3);\n"
+
+# Model verbose names
+msgid "Course"
+msgstr "Курс"
+
+msgid "Courses"
+msgstr "Курсы"
+
+msgid "Student"
+msgstr "Студент"
+
+msgid "Students"
+msgstr "Студенты"
+
+msgid "Enrollment"
+msgstr "Зачисление"
+
+msgid "Enrollments"
+msgstr "Зачисления"
+
+msgid "Project"
+msgstr "Проект"
+
+msgid "Projects"
+msgstr "Проекты"
+
+msgid "Task"
+msgstr "Задача"
+
+msgid "Tasks"
+msgstr "Задачи"
+
+msgid "Status Log"
+msgstr "Журнал статусов"
+
+msgid "Status Logs"
+msgstr "Журналы статусов"
+
+# Model field choices - Project status
+msgid "Draft"
+msgstr "Черновик"
+
+msgid "In Progress"
+msgstr "В работе"
+
+msgid "Under Review"
+msgstr "На проверке"
+
+msgid "Completed"
+msgstr "Завершён"
+
+msgid "Archived"
+msgstr "Архивирован"
+
+# Model field choices - Project priority
+msgid "Low"
+msgstr "Низкий"
+
+msgid "Medium"
+msgstr "Средний"
+
+msgid "High"
+msgstr "Высокий"
+
+# Navigation
+msgid "Dashboard"
+msgstr "Панель управления"
+
+msgid "My Profile"
+msgstr "Мой профиль"
+
+msgid "Sign Out"
+msgstr "Выйти"
+
+msgid "Sign Up"
+msgstr "Регистрация"
+
+msgid "Sign In"
+msgstr "Войти"
+
+msgid "About"
+msgstr "О проекте"
+
+# Dashboard
+msgid "Educational Project Management Dashboard"
+msgstr "Панель управления учебными проектами"
+
+msgid "Total Projects"
+msgstr "Всего проектов"
+
+msgid "Completed"
+msgstr "Завершено"
+
+msgid "In Progress"
+msgstr "В работе"
+
+msgid "Overdue"
+msgstr "Просрочено"
+
+msgid "Quick Actions"
+msgstr "Быстрые действия"
+
+msgid "New Project"
+msgstr "Новый проект"
+
+msgid "New Course"
+msgstr "Новый курс"
+
+msgid "View All Projects"
+msgstr "Все проекты"
+
+msgid "View Courses"
+msgstr "Все курсы"
+
+msgid "Recent Projects"
+msgstr "Недавние проекты"
+
+msgid "View All"
+msgstr "Все"
+
+msgid "Active Courses"
+msgstr "Активные курсы"
+
+msgid "projects"
+msgstr "проектов"
+
+msgid "Top Students"
+msgstr "Лучшие студенты"
+
+msgid "About This System"
+msgstr "О системе"
+
+msgid "This Educational Project Management System is designed to track student projects, manage courses, and monitor progress throughout the educational program."
+msgstr "Эта система управления учебными проектами предназначена для отслеживания студенческих проектов, управления курсами и мониторинга прогресса в течение образовательной программы."
+
+msgid "Key Features"
+msgstr "Основные возможности"
+
+msgid "Project lifecycle management"
+msgstr "Управление жизненным циклом проекта"
+
+msgid "Status workflow tracking"
+msgstr "Отслеживание статусов"
+
+msgid "Task management"
+msgstr "Управление задачами"
+
+msgid "Score evaluation"
+msgstr "Оценивание"
+
+msgid "For Students"
+msgstr "Для студентов"
+
+msgid "View assigned projects"
+msgstr "Просмотр назначенных проектов"
+
+msgid "Track progress"
+msgstr "Отслеживание прогресса"
+
+msgid "Manage tasks"
+msgstr "Управление задачами"
+
+msgid "Submit work"
+msgstr "Отправка работ"
+
+msgid "For Instructors"
+msgstr "Для преподавателей"
+
+msgid "Create courses"
+msgstr "Создание курсов"
+
+msgid "Assign projects"
+msgstr "Назначение проектов"
+
+msgid "Review submissions"
+msgstr "Проверка работ"
+
+msgid "Evaluate scores"
+msgstr "Выставление оценок"
+
+# Project list
+msgid "Filter"
+msgstr "Фильтр"
+
+msgid "Clear"
+msgstr "Сбросить"
+
+msgid "Search"
+msgstr "Поиск"
+
+msgid "Project title"
+msgstr "Название проекта"
+
+msgid "Status"
+msgstr "Статус"
+
+msgid "All"
+msgstr "Все"
+
+msgid "Course"
+msgstr "Курс"
+
+msgid "Priority"
+msgstr "Приоритет"
+
+msgid "Overdue"
+msgstr "Просрочено"
+
+msgid "Title"
+msgstr "Название"
+
+msgid "Student"
+msgstr "Студент"
+
+msgid "Score"
+msgstr "Оценка"
+
+msgid "Deadline"
+msgstr "Срок"
+
+msgid "Progress"
+msgstr "Прогресс"
+
+msgid "Actions"
+msgstr "Действия"
+
+msgid "View"
+msgstr "Просмотр"
+
+msgid "No projects found."
+msgstr "Проекты не найдены."
+
+msgid "Previous"
+msgstr "Назад"
+
+msgid "Next"
+msgstr "Вперёд"
+
+# Project detail
+msgid "Project Details"
+msgstr "Детали проекта"
+
+msgid "Edit"
+msgstr "Редактировать"
+
+msgid "Delete"
+msgstr "Удалить"
+
+msgid "Repository"
+msgstr "Репозиторий"
+
+msgid "Deployed"
+msgstr "Развёрнуто"
+
+msgid "days remaining"
+msgstr "дней осталось"
+
+msgid "Overdue by"
+msgstr "Просрочено на"
+
+msgid "days"
+msgstr "дней"
+
+msgid "of"
+msgstr "из"
+
+msgid "tasks completed"
+msgstr "задач выполнено"
+
+msgid "Add Task"
+msgstr "Добавить задачу"
+
+msgid "Status History"
+msgstr "История статусов"
+
+msgid "by"
+msgstr "от"
+
+msgid "No status changes recorded."
+msgstr "Изменений статусов не зафиксировано."
+
+msgid "Change Status"
+msgstr "Изменить статус"
+
+msgid "New Status"
+msgstr "Новый статус"
+
+msgid "Comment (optional)"
+msgstr "Комментарий (необязательно)"
+
+msgid "Update Status"
+msgstr "Обновить статус"
+
+msgid "No status transitions available."
+msgstr "Нет доступных переходов статуса."
+
+msgid "Description"
+msgstr "Описание"
+
+msgid "Order"
+msgstr "Порядок"
+
+msgid "Cancel"
+msgstr "Отмена"
+
+msgid "Add Task"
+msgstr "Добавить задачу"
+
+msgid "Are you sure you want to delete this task?"
+msgstr "Вы уверены, что хотите удалить эту задачу?"
+
+msgid "No tasks yet. Add the first task!"
+msgstr "Задач пока нет. Добавьте первую задачу!"
+
+# Project form
+msgid "Create"
+msgstr "Создать"
+
+msgid "Save Project"
+msgstr "Сохранить проект"
+
+# Course form
+msgid "Save Course"
+msgstr "Сохранить курс"
+
+msgid "Edit Course"
+msgstr "Редактировать курс"
+
+msgid "Create Course"
+msgstr "Создать курс"
+
+# Delete confirmations
+msgid "Delete Project"
+msgstr "Удалить проект"
+
+msgid "Delete Course"
+msgstr "Удалить курс"
+
+msgid "Delete Student"
+msgstr "Удалить студента"
+
+msgid "Are you sure you want to delete this project?"
+msgstr "Вы уверены, что хотите удалить этот проект?"
+
+msgid "Are you sure you want to delete this course?"
+msgstr "Вы уверены, что хотите удалить этот курс?"
+
+msgid "Are you sure you want to delete this student?"
+msgstr "Вы уверены, что хотите удалить этого студента?"
+
+msgid "This action cannot be undone."
+msgstr "Это действие нельзя отменить."
+
+msgid "This action cannot be undone. All related projects and enrollments will also be deleted."
+msgstr "Это действие нельзя отменить. Все связанные проекты и зачисления также будут удалены."
+
+# Course list
+msgid "Show active only"
+msgstr "Только активные"
+
+msgid "No courses found. Create your first course!"
+msgstr "Курсов не найдено. Создайте свой первый курс!"
+
+msgid "View Details"
+msgstr "Подробнее"
+
+msgid "days"
+msgstr "дней"
+
+msgid "students"
+msgstr "студентов"
+
+# Course detail
+msgid "Course Details"
+msgstr "Детали курса"
+
+msgid "Start Date"
+msgstr "Дата начала"
+
+msgid "End Date"
+msgstr "Дата окончания"
+
+msgid "Duration"
+msgstr "Продолжительность"
+
+msgid "Total Projects"
+msgstr "Всего проектов"
+
+msgid "Average Score"
+msgstr "Средняя оценка"
+
+msgid "Enrolled Students"
+msgstr "Зачисленные студенты"
+
+msgid "No projects in this course yet."
+msgstr "В этом курсе пока нет проектов."
+
+msgid "No students enrolled yet."
+msgstr "Студенты пока не зачислены."
+
+# Student list
+msgid "Student ID"
+msgstr "ID студента"
+
+msgid "Group"
+msgstr "Группа"
+
+msgid "Search by username, student ID, or group"
+msgstr "Поиск по имени пользователя, ID студента или группе"
+
+msgid "No students found."
+msgstr "Студенты не найдены."
+
+# Student detail
+msgid "Student Profile"
+msgstr "Профиль студента"
+
+msgid "Enrolled At"
+msgstr "Зачислен"
+
+msgid "Average Score"
+msgstr "Средняя оценка"
+
+msgid "Not assigned"
+msgstr "Не назначено"
+
+msgid "Course Enrollments"
+msgstr "Зачисления на курсы"
+
+msgid "Inactive"
+msgstr "Неактивно"
+
+msgid "Not enrolled in any courses."
+msgstr "Не зачислен ни на какие курсы."
+
+msgid "No projects yet."
+msgstr "Проектов пока нет."
+
+msgid "No student data yet."
+msgstr "Данных о студентах пока нет."
+
+msgid "No active courses."
+msgstr "Активных курсов нет."
+
+msgid "No projects yet. Create your first project!"
+msgstr "Проектов пока нет. Создайте свой первый проект!"
+
+# User profile
+msgid "My Info"
+msgstr "Моя информация"
+
+msgid "E-Mail"
+msgstr "E-Mail"
+
+msgid "MFA"
+msgstr "MFA"
+
+# Pagination
+msgid "Project pagination"
+msgstr "Пагинация проектов"
+
+msgid "Course pagination"
+msgstr "Пагинация курсов"
+
+msgid "Student pagination"
+msgstr "Пагинация студентов"
+
+# Messages
+msgid "Course created successfully!"
+msgstr "Курс успешно создан!"
+
+msgid "Course updated successfully!"
+msgstr "Курс успешно обновлён!"
+
+msgid "Course deleted successfully!"
+msgstr "Курс успешно удалён!"
+
+msgid "Project created successfully!"
+msgstr "Проект успешно создан!"
+
+msgid "Project updated successfully!"
+msgstr "Проект успешно обновлён!"
+
+msgid "Project deleted successfully!"
+msgstr "Проект успешно удалён!"
+
+# Form labels
+msgid "Name"
+msgstr "Название"
+
+msgid "Code"
+msgstr "Код"
+
+msgid "Start date"
+msgstr "Дата начала"
+
+msgid "End date"
+msgstr "Дата окончания"
+
+msgid "Is active"
+msgstr "Активен"
+
+msgid "User"
+msgstr "Пользователь"
+
+msgid "Student ID"
+msgstr "ID студента"
+
+msgid "Group"
+msgstr "Группа"
+
+msgid "Title"
+msgstr "Название"
+
+msgid "Description"
+msgstr "Описание"
+
+msgid "Course"
+msgstr "Курс"
+
+msgid "Student"
+msgstr "Студент"
+
+msgid "Status"
+msgstr "Статус"
+
+msgid "Priority"
+msgstr "Приоритет"
+
+msgid "Score"
+msgstr "Оценка"
+
+msgid "Repository URL"
+msgstr "URL репозитория"
+
+msgid "Deployed URL"
+msgstr "URL развёртывания"
+
+msgid "Deadline"
+msgstr "Срок"
+
+msgid "Order"
+msgstr "Порядок"
+
+msgid "Is completed"
+msgstr "Выполнено"
+
+msgid "Enter task titles, one per line"
+msgstr "Введите названия задач, по одному в строке"
+
+msgid "Enter one task title per line"
+msgstr "Введите название задачи для каждой строки"
+
+# Bootstrap form controls
+msgid "form-control"
+msgstr "form-control"
+
+msgid "form-select"
+msgstr "form-select"
+
+msgid "form-check-input"
+msgstr "form-check-input"
+
+# Other
+msgid "readme-content"
+msgstr "readme-content"
+
+msgid "container"
+msgstr "container"
+
+msgid "card"
+msgstr "card"
+
+msgid "card-header"
+msgstr "card-header"
+
+msgid "card-body"
+msgstr "card-body"
+
+msgid "card-footer"
+msgstr "card-footer"
+
+msgid "btn"
+msgstr "btn"
+
+msgid "btn-primary"
+msgstr "btn-primary"
+
+msgid "btn-secondary"
+msgstr "btn-secondary"
+
+msgid "btn-outline-primary"
+msgstr "btn-outline-primary"
+
+msgid "btn-outline-secondary"
+msgstr "btn-outline-secondary"
+
+msgid "btn-outline-danger"
+msgstr "btn-outline-danger"
+
+msgid "badge"
+msgstr "badge"
+
+msgid "bg-primary"
+msgstr "bg-primary"
+
+msgid "bg-success"
+msgstr "bg-success"
+
+msgid "bg-warning"
+msgstr "bg-warning"
+
+msgid "bg-danger"
+msgstr "bg-danger"
+
+msgid "bg-info"
+msgstr "bg-info"
+
+msgid "bg-secondary"
+msgstr "bg-secondary"
+
+msgid "table"
+msgstr "table"
+
+msgid "table-hover"
+msgstr "table-hover"
+
+msgid "table-responsive"
+msgstr "table-responsive"
+
+msgid "progress"
+msgstr "progress"
+
+msgid "progress-bar"
+msgstr "progress-bar"
+
+msgid "modal"
+msgstr "modal"
+
+msgid "modal-dialog"
+msgstr "modal-dialog"
+
+msgid "modal-content"
+msgstr "modal-content"
+
+msgid "modal-header"
+msgstr "modal-header"
+
+msgid "modal-body"
+msgstr "modal-body"
+
+msgid "modal-footer"
+msgstr "modal-footer"
+
+msgid "form-label"
+msgstr "form-label"
+
+msgid "form-text"
+msgstr "form-text"
+
+msgid "text-muted"
+msgstr "text-muted"
+
+msgid "fw-bold"
+msgstr "fw-bold"
+
+msgid "small"
+msgstr "small"
+
+msgid "list-group"
+msgstr "list-group"
+
+msgid "list-group-item"
+msgstr "list-group-item"
+
+msgid "list-group-flush"
+msgstr "list-group-flush"
+
+msgid "breadcrumb"
+msgstr "breadcrumb"
+
+msgid "breadcrumb-item"
+msgstr "breadcrumb-item"
+
+msgid "alert"
+msgstr "alert"
+
+msgid "alert-info"
+msgstr "alert-info"
+
+msgid "alert-danger"
+msgstr "alert-danger"
+
+msgid "alert-success"
+msgstr "alert-success"
+
+msgid "alert-warning"
+msgstr "alert-warning"
+
+msgid "d-flex"
+msgstr "d-flex"
+
+msgid "justify-content-between"
+msgstr "justify-content-between"
+
+msgid "align-items-center"
+msgstr "align-items-center"
+
+msgid "mb-0"
+msgstr "mb-0"
+
+msgid "mb-1"
+msgstr "mb-1"
+
+msgid "mb-2"
+msgstr "mb-2"
+
+msgid "mb-3"
+msgstr "mb-3"
+
+msgid "mb-4"
+msgstr "mb-4"
+
+msgid "mt-2"
+msgstr "mt-2"
+
+msgid "mt-3"
+msgstr "mt-3"
+
+msgid "mt-4"
+msgstr "mt-4"
+
+msgid "me-2"
+msgstr "me-2"
+
+msgid "ms-2"
+msgstr "ms-2"
+
+msgid "row"
+msgstr "row"
+
+msgid "col"
+msgstr "col"
+
+msgid "col-md"
+msgstr "col-md"
+
+msgid "col-md-1"
+msgstr "col-md-1"
+
+msgid "col-md-2"
+msgstr "col-md-2"
+
+msgid "col-md-3"
+msgstr "col-md-3"
+
+msgid "col-md-4"
+msgstr "col-md-4"
+
+msgid "col-md-6"
+msgstr "col-md-6"
+
+msgid "col-md-8"
+msgstr "col-md-8"
+
+msgid "col-lg-4"
+msgstr "col-lg-4"
+
+msgid "col-12"
+msgstr "col-12"
+
+msgid "visually-hidden"
+msgstr "visually-hidden"
+
+msgid "current"
+msgstr "текущий"
+
+msgid "navbar"
+msgstr "navbar"
+
+msgid "navbar-expand-md"
+msgstr "navbar-expand-md"
+
+msgid "navbar-light"
+msgstr "navbar-light"
+
+msgid "bg-light"
+msgstr "bg-light"
+
+msgid "container-fluid"
+msgstr "container-fluid"
+
+msgid "navbar-toggler"
+msgstr "navbar-toggler"
+
+msgid "navbar-toggler-icon"
+msgstr "navbar-toggler-icon"
+
+msgid "navbar-brand"
+msgstr "navbar-brand"
+
+msgid "collapse"
+msgstr "collapse"
+
+msgid "navbar-collapse"
+msgstr "navbar-collapse"
+
+msgid "navbar-nav"
+msgstr "navbar-nav"
+
+msgid "nav-item"
+msgstr "nav-item"
+
+msgid "active"
+msgstr "active"
+
+msgid "nav-link"
+msgstr "nav-link"
+
+msgid "form-check"
+msgstr "form-check"
+
+msgid "form-check-label"
+msgstr "form-check-label"
+
+msgid "btn-close"
+msgstr "btn-close"
+
+msgid "btn-sm"
+msgstr "btn-sm"
+
+msgid "btn-lg"
+msgstr "btn-lg"
+
+msgid "fs-6"
+msgstr "fs-6"
+
+msgid "text-decoration-line-through"
+msgstr "text-decoration-line-through"
+
+msgid "invalid-feedback"
+msgstr "invalid-feedback"
+
+msgid "d-block"
+msgstr "d-block"
+
+msgid "text-end"
+msgstr "text-end"
+
+msgid "text-center"
+msgstr "text-center"
+
+msgid "h-100"
+msgstr "h-100"
+
+msgid "w-100"
+msgstr "w-100"
+
+msgid "dropdown"
+msgstr "dropdown"
+
+msgid "dropdown-toggle"
+msgstr "dropdown-toggle"
+
+msgid "dropdown-menu"
+msgstr "dropdown-menu"
+
+msgid "dropdown-item"
+msgstr "dropdown-item"
+
+msgid "fade"
+msgstr "fade"
+
+msgid "show"
+msgstr "show"
+
+msgid "tab-content"
+msgstr "tab-content"
+
+msgid "tab-pane"
+msgstr "tab-pane"
+
+msgid "active"
+msgstr "active"
+
+msgid "id"
+msgstr "id"
+
+msgid "role"
+msgstr "role"
+
+msgid "tablist"
+msgstr "tablist"
+
+msgid "tabpanel"
+msgstr "tabpanel"
+
+msgid "button"
+msgstr "button"
+
+msgid "data-bs-toggle"
+msgstr "data-bs-toggle"
+
+msgid "data-bs-target"
+msgstr "data-bs-target"
+
+msgid "aria-selected"
+msgstr "aria-selected"
+
+msgid "tabindex"
+msgstr "tabindex"
+
+msgid "pagination"
+msgstr "pagination"
+
+msgid "page-item"
+msgstr "page-item"
+
+msgid "page-link"
+msgstr "page-link"
+
+msgid "disabled"
+msgstr "disabled"
+
+msgid "justify-content-center"
+msgstr "justify-content-center"
+
+msgid "progress-fixed-height"
+msgstr "progress-fixed-height"
+
+msgid "progress-small"
+msgstr "progress-small"
+
+msgid "progress-medium"
+msgstr "progress-medium"
+
+msgid "task-checkbox"
+msgstr "task-checkbox"
+
+msgid "delete-task"
+msgstr "delete-task"
+
+msgid "transition-form"
+msgstr "transition-form"
+
+msgid "task-form"
+msgstr "task-form"
+
+msgid "sign-up-link"
+msgstr "sign-up-link"
+
+msgid "log-in-link"
+msgstr "log-in-link"
+
+msgid "Project created"
+msgstr "Проект создан"
+
+msgid "Enter task title"
+msgstr "Введите название задачи"
+
+msgid "Enter task description"
+msgstr "Введите описание задачи"
+
+msgid "Enter project title"
+msgstr "Введите название проекта"
+
+msgid "Enter project description"
+msgstr "Введите описание проекта"
+
+msgid "Enter repository URL"
+msgstr "Введите URL репозитория"
+
+msgid "Enter deployed URL"
+msgstr "Введите URL развёртывания"
+
+msgid "Select course"
+msgstr "Выберите курс"
+
+msgid "Select student"
+msgstr "Выберите студента"
+
+msgid "Select status"
+msgstr "Выберите статус"
+
+msgid "Select priority"
+msgstr "Выберите приоритет"
+
+msgid "Enter score"
+msgstr "Введите оценку"
+
+msgid "Select deadline"
+msgstr "Выберите срок"
+
+msgid "Enter student ID"
+msgstr "Введите ID студента"
+
+msgid "Enter group name"
+msgstr "Введите название группы"
+
+msgid "Select user"
+msgstr "Выберите пользователя"
+
+msgid "Enter course name"
+msgstr "Введите название курса"
+
+msgid "Enter course code"
+msgstr "Введите код курса"
+
+msgid "Enter course description"
+msgstr "Введите описание курса"
+
+msgid "Select start date"
+msgstr "Выберите дату начала"
+
+msgid "Select end date"
+msgstr "Выберите дату окончания"
+
+msgid "Course is active"
+msgstr "Курс активен"
+
+msgid "Project is active"
+msgstr "Проект активен"
+
+msgid "Task is completed"
+msgstr "Задача выполнена"
+
+msgid "Enrollment is active"
+msgstr "Зачисление активно"
+
+msgid "No tasks"
+msgstr "Нет задач"
+
+msgid "No projects"
+msgstr "Нет проектов"
+
+msgid "No courses"
+msgstr "Нет курсов"
+
+msgid "No students"
+msgstr "Нет студентов"
+
+msgid "No enrollments"
+msgstr "Нет зачислений"
+
+msgid "No status logs"
+msgstr "Нет журналов статусов"
+
+msgid "No data"
+msgstr "Нет данных"
+
+msgid "No results"
+msgstr "Нет результатов"
+
+msgid "No entries"
+msgstr "Нет записей"
+
+msgid "No items"
+msgstr "Нет элементов"
+
+msgid "No records"
+msgstr "Нет записей"
+
+msgid "No options"
+msgstr "Нет опций"
+
+msgid "No choices"
+msgstr "Нет выборов"
+
+msgid "No selections"
+msgstr "Нет выборов"
+
+msgid "No permissions"
+msgstr "Нет разрешений"
+
+msgid "No access"
+msgstr "Нет доступа"
+
+msgid "No privileges"
+msgstr "Нет привилегий"
+
+msgid "No rights"
+msgstr "Нет прав"
+
+msgid "No authority"
+msgstr "Нет полномочий"
+
+msgid "No control"
+msgstr "Нет контроля"
+
+msgid "No management"
+msgstr "Нет управления"
+
+msgid "No administration"
+msgstr "Нет администрирования"
+
+msgid "No supervision"
+msgstr "Нет надзора"
+
+msgid "No oversight"
+msgstr "Нет надзора"
+
+msgid "No regulation"
+msgstr "Нет регулирования"
+
+msgid "No governance"
+msgstr "Нет управления"
+
+msgid "No direction"
+msgstr "Нет направления"
+
+msgid "No guidance"
+msgstr "Нет руководства"
+
+msgid "No leadership"
+msgstr "Нет лидерства"
+
+msgid "No command"
+msgstr "Нет команды"
+
+msgid "No instruction"
+msgstr "Нет инструкции"
+
+msgid "No order"
+msgstr "Нет порядка"
+
+msgid "No directive"
+msgstr "Нет директивы"
+
+msgid "No mandate"
+msgstr "Нет мандата"
+
+msgid "No authorization"
+msgstr "Нет авторизации"
+
+msgid "No approval"
+msgstr "Нет одобрения"
+
+msgid "No consent"
+msgstr "Нет согласия"
+
+msgid "No agreement"
+msgstr "Нет соглашения"
+
+msgid "No acceptance"
+msgstr "Нет принятия"
+
+msgid "No confirmation"
+msgstr "Нет подтверждения"
+
+msgid "No validation"
+msgstr "Нет валидации"
+
+msgid "No verification"
+msgstr "Нет проверки"
+
+msgid "No authentication"
+msgstr "Нет аутентификации"
+
+msgid "No identification"
+msgstr "Нет идентификации"
+
+msgid "No recognition"
+msgstr "Нет распознавания"
+
+msgid "No acknowledgment"
+msgstr "Нет подтверждения"
+
+msgid "No notification"
+msgstr "Нет уведомления"
+
+msgid "No announcement"
+msgstr "Нет объявления"
+
+msgid "No declaration"
+msgstr "Нет декларации"
+
+msgid "No statement"
+msgstr "Нет заявления"
+
+msgid "No proclamation"
+msgstr "Нет прокламации"
+
+msgid "No publication"
+msgstr "Нет публикации"
+
+msgid "No disclosure"
+msgstr "Нет раскрытия"
+
+msgid "No revelation"
+msgstr "Нет раскрытия"
+
+msgid "No exposure"
+msgstr "Нет экспозиции"
+
+msgid "No display"
+msgstr "Нет отображения"
+
+msgid "No presentation"
+msgstr "Нет презентации"
+
+msgid "No exhibition"
+msgstr "Нет выставки"
+
+msgid "No demonstration"
+msgstr "Нет демонстрации"
+
+msgid "No showcase"
+msgstr "Нет витрины"
+
+msgid "No show"
+msgstr "Нет шоу"
+
+msgid "No performance"
+msgstr "Нет производительности"
+
+msgid "No execution"
+msgstr "Нет выполнения"
+
+msgid "No implementation"
+msgstr "Нет реализации"
+
+msgid "No operation"
+msgstr "Нет операции"
+
+msgid "No function"
+msgstr "Нет функции"
+
+msgid "No action"
+msgstr "Нет действия"
+
+msgid "No activity"
+msgstr "Нет активности"
+
+msgid "No process"
+msgstr "Нет процесса"
+
+msgid "No procedure"
+msgstr "Нет процедуры"
+
+msgid "No method"
+msgstr "Нет метода"
+
+msgid "No technique"
+msgstr "Нет техники"
+
+msgid "No approach"
+msgstr "Нет подхода"
+
+msgid "No strategy"
+msgstr "Нет стратегии"
+
+msgid "No tactic"
+msgstr "Нет тактики"
+
+msgid "No plan"
+msgstr "Нет плана"
+
+msgid "No scheme"
+msgstr "Нет схемы"
+
+msgid "No system"
+msgstr "Нет системы"
+
+msgid "No structure"
+msgstr "Нет структуры"
+
+msgid "No organization"
+msgstr "Нет организации"
+
+msgid "No arrangement"
+msgstr "Нет расположения"
+
+msgid "No configuration"
+msgstr "Нет конфигурации"
+
+msgid "No setup"
+msgstr "Нет настройки"
+
+msgid "No installation"
+msgstr "Нет установки"
+
+msgid "No deployment"
+msgstr "Нет развертывания"
+
+msgid "No release"
+msgstr "Нет релиза"
+
+msgid "No delivery"
+msgstr "Нет доставки"
+
+msgid "No distribution"
+msgstr "Нет распространения"
+
+msgid "No allocation"
+msgstr "Нет распределения"
+
+msgid "No assignment"
+msgstr "Нет назначения"
+
+msgid "No designation"
+msgstr "Нет обозначения"
+
+msgid "No specification"
+msgstr "Нет спецификации"
+
+msgid "No definition"
+msgstr "Нет определения"
+
+msgid "No description"
+msgstr "Нет описания"
+
+msgid "No explanation"
+msgstr "Нет объяснения"
+
+msgid "No interpretation"
+msgstr "Нет интерпретации"
+
+msgid "No clarification"
+msgstr "Нет разъяснения"
+
+msgid "No illustration"
+msgstr "Нет иллюстрации"
+
+msgid "No example"
+msgstr "Нет примера"
+
+msgid "No instance"
+msgstr "Нет экземпляра"
+
+msgid "No case"
+msgstr "Нет случая"
+
+msgid "No sample"
+msgstr "Нет образца"
+
+msgid "No specimen"
+msgstr "Нет образца"
+
+msgid "No model"
+msgstr "Нет модели"
+
+msgid "No pattern"
+msgstr "Нет шаблона"
+
+msgid "No template"
+msgstr "Нет шаблона"
+
+msgid "No format"
+msgstr "Нет формата"
+
+msgid "No style"
+msgstr "Нет стиля"
+
+msgid "No design"
+msgstr "Нет дизайна"
+
+msgid "No layout"
+msgstr "Нет макета"
+
+msgid "No arrangement"
+msgstr "Нет расположения"
+
+msgid "No composition"
+msgstr "Нет композиции"
+
+msgid "No construction"
+msgstr "Нет конструкции"
+
+msgid "No creation"
+msgstr "Нет создания"
+
+msgid "No formation"
+msgstr "Нет формирования"
+
+msgid "No generation"
+msgstr "Нет генерации"
+
+msgid "No production"
+msgstr "Нет производства"
+
+msgid "No manufacture"
+msgstr "Нет производства"
+
+msgid "No fabrication"
+msgstr "Нет изготовления"
+
+msgid "No assembly"
+msgstr "Нет сборки"
+
+msgid "No building"
+msgstr "Нет строительства"
+
+msgid "No erection"
+msgstr "Нет возведения"
+
+msgid "No establishment"
+msgstr "Нет учреждения"
+
+msgid "No foundation"
+msgstr "Нет основания"
+
+msgid "No institution"
+msgstr "Нет учреждения"
+
+msgid "No organization"
+msgstr "Нет организации"
+
+msgid "No association"
+msgstr "Нет ассоциации"
+
+msgid "No society"
+msgstr "Нет общества"
+
+msgid "No community"
+msgstr "Нет сообщества"
+
+msgid "No group"
+msgstr "Нет группы"
+
+msgid "No team"
+msgstr "Нет команды"
+
+msgid "No crew"
+msgstr "Нет экипажа"
+
+msgid "No staff"
+msgstr "Нет персонала"
+
+msgid "No personnel"
+msgstr "Нет персонала"
+
+msgid "No workforce"
+msgstr "Нет рабочей силы"
+
+msgid "No manpower"
+msgstr "Нет рабочей силы"
+
+msgid "No human resources"
+msgstr "Нет человеческих ресурсов"
+
+msgid "No employees"
+msgstr "Нет сотрудников"
+
+msgid "No workers"
+msgstr "Нет работников"
+
+msgid "No laborers"
+msgstr "Нет рабочих"
+
+msgid "No operators"
+msgstr "Нет операторов"
+
+msgid "No technicians"
+msgstr "Нет техников"
+
+msgid "No specialists"
+msgstr "Нет специалистов"
+
+msgid "No experts"
+msgstr "Нет экспертов"
+
+msgid "No professionals"
+msgstr "Нет профессионалов"
+
+msgid "No practitioners"
+msgstr "Нет практиков"
+
+msgid "No consultants"
+msgstr "Нет консультантов"
+
+msgid "No advisors"
+msgstr "Нет советников"
+
+msgid "No counselors"
+msgstr "Нет консультантов"
+
+msgid "No coaches"
+msgstr "Нет тренеров"
+
+msgid "No mentors"
+msgstr "Нет наставников"
+
+msgid "No tutors"
+msgstr "Нет репетиторов"
+
+msgid "No teachers"
+msgstr "Нет учителей"
+
+msgid "No instructors"
+msgstr "Нет инструкторов"
+
+msgid "No educators"
+msgstr "Нет педагогов"
+
+msgid "No trainers"
+msgstr "Нет тренеров"
+
+msgid "No facilitators"
+msgstr "Нет фасилитаторов"
+
+msgid "No moderators"
+msgstr "Нет модераторов"
+
+msgid "No supervisors"
+msgstr "Нет супервизоров"
+
+msgid "No managers"
+msgstr "Нет менеджеров"
+
+msgid "No directors"
+msgstr "Нет директоров"
+
+msgid "No executives"
+msgstr "Нет руководителей"
+
+msgid "No administrators"
+msgstr "Нет администраторов"
+
+msgid "No officials"
+msgstr "Нет должностных лиц"
+
+msgid "No officers"
+msgstr "Нет офицеров"
+
+msgid "No agents"
+msgstr "Нет агентов"
+
+msgid "No representatives"
+msgstr "Нет представителей"
+
+msgid "No delegates"
+msgstr "Нет делегатов"
+
+msgid "No ambassadors"
+msgstr "Нет послов"
+
+msgid "No envoys"
+msgstr "Нет посланников"
+
+msgid "No messengers"
+msgstr "Нет посланников"
+
+msgid "No couriers"
+msgstr "Нет курьеров"
+
+msgid "No carriers"
+msgstr "Нет носителей"
+
+msgid "No transporters"
+msgstr "Нет перевозчиков"
+
+msgid "No deliverers"
+msgstr "Нет доставщиков"
+
+msgid "No distributors"
+msgstr "Нет дистрибьюторов"
+
+msgid "No suppliers"
+msgstr "Нет поставщиков"
+
+msgid "No vendors"
+msgstr "Нет продавцов"
+
+msgid "No sellers"
+msgstr "Нет продавцов"
+
+msgid "No merchants"
+msgstr "Нет торговцев"
+
+msgid "No traders"
+msgstr "Нет торговцев"
+
+msgid "No dealers"
+msgstr "Нет дилеров"
+
+msgid "No brokers"
+msgstr "Нет брокеров"
+
+msgid "No intermediaries"
+msgstr "Нет посредников"
+
+msgid "No middlemen"
+msgstr "Нет посредников"
+
+msgid "No go-betweens"
+msgstr "Нет посредников"
+
+msgid "No liaisons"
+msgstr "Нет связей"
+
+msgid "No contacts"
+msgstr "Нет контактов"
+
+msgid "No connections"
+msgstr "Нет соединений"
+
+msgid "No links"
+msgstr "Нет ссылок"
+
+msgid "No networks"
+msgstr "Нет сетей"
+
+msgid "No systems"
+msgstr "Нет систем"
+
+msgid "No platforms"
+msgstr "Нет платформ"
+
+msgid "No frameworks"
+msgstr "Нет фреймворков"
+
+msgid "No infrastructures"
+msgstr "Нет инфраструктур"
+
+msgid "No architectures"
+msgstr "Нет архитектур"
+
+msgid "No structures"
+msgstr "Нет структур"
+
+msgid "No organizations"
+msgstr "Нет организаций"
+
+msgid "No institutions"
+msgstr "Нет учреждений"
+
+msgid "No establishments"
+msgstr "Нет заведений"
+
+msgid "No facilities"
+msgstr "Нет объектов"
+
+msgid "No installations"
+msgstr "Нет установок"
+
+msgid "No complexes"
+msgstr "Нет комплексов"
+
+msgid "No centers"
+msgstr "Нет центров"
+
+msgid "No hubs"
+msgstr "Нет хабов"
+
+msgid "No nodes"
+msgstr "Нет узлов"
+
+msgid "No points"
+msgstr "Нет точек"
+
+msgid "No locations"
+msgstr "Нет мест"
+
+msgid "No sites"
+msgstr "Нет сайтов"
+
+msgid "No places"
+msgstr "Нет мест"
+
+msgid "No spots"
+msgstr "Нет пятен"
+
+msgid "No positions"
+msgstr "Нет позиций"
+
+msgid "No venues"
+msgstr "Нет мест"
+
+msgid "No grounds"
+msgstr "Нет оснований"
+
+msgid "No premises"
+msgstr "Нет помещений"
+
+msgid "No properties"
+msgstr "Нет свойств"
+
+msgid "No estates"
+msgstr "Нет имений"
+
+msgid "No holdings"
+msgstr "Нет владений"
+
+msgid "No possessions"
+msgstr "Нет владений"
+
+msgid "No assets"
+msgstr "Нет активов"
+
+msgid "No resources"
+msgstr "Нет ресурсов"
+
+msgid "No materials"
+msgstr "Нет материалов"
+
+msgid "No supplies"
+msgstr "Нет припасов"
+
+msgid "No provisions"
+msgstr "Нет положений"
+
+msgid "No stocks"
+msgstr "Нет запасов"
+
+msgid "No stores"
+msgstr "Нет магазинов"
+
+msgid "No reserves"
+msgstr "Нет резервов"
+
+msgid "No funds"
+msgstr "Нет фондов"
+
+msgid "No capitals"
+msgstr "Нет капиталов"
+
+msgid "No finances"
+msgstr "Нет финансов"
+
+msgid "No money"
+msgstr "Нет денег"
+
+msgid "No currency"
+msgstr "Нет валюты"
+
+msgid "No cash"
+msgstr "Нет наличных"
+
+msgid "No credit"
+msgstr "Нет кредита"
+
+msgid "No debt"
+msgstr "Нет долга"
+
+msgid "No loan"
+msgstr "Нет займа"
+
+msgid "No mortgage"
+msgstr "Нет ипотеки"
+
+msgid "No investment"
+msgstr "Нет инвестиций"
+
+msgid "No stake"
+msgstr "Нет доли"
+
+msgid "No share"
+msgstr "Нет доли"
+
+msgid "No interest"
+msgstr "Нет интереса"
+
+msgid "No dividend"
+msgstr "Нет дивиденда"
+
+msgid "No profit"
+msgstr "Нет прибыли"
+
+msgid "No gain"
+msgstr "Нет прибыли"
+
+msgid "No earnings"
+msgstr "Нет заработка"
+
+msgid "No income"
+msgstr "Нет дохода"
+
+msgid "No revenue"
+msgstr "Нет дохода"
+
+msgid "No return"
+msgstr "Нет возврата"
+
+msgid "No yield"
+msgstr "Нет урожая"
+
+msgid "No output"
+msgstr "Нет выхода"
+
+msgid "No product"
+msgstr "Нет продукта"
+
+msgid "No produce"
+msgstr "Нет продукта"
+
+msgid "No goods"
+msgstr "Нет товаров"
+
+msgid "No merchandise"
+msgstr "Нет товаров"
+
+msgid "No commodities"
+msgstr "Нет товаров"
+
+msgid "No wares"
+msgstr "Нет товаров"
+
+msgid "No items"
+msgstr "Нет элементов"
+
+msgid "No articles"
+msgstr "Нет статей"
+
+msgid "No objects"
+msgstr "Нет объектов"
+
+msgid "No things"
+msgstr "Нет вещей"
+
+msgid "No stuff"
+msgstr "Нет вещей"
+
+msgid "No matter"
+msgstr "Нет материи"
+
+msgid "No substance"
+msgstr "Нет вещества"
+
+msgid "No material"
+msgstr "Нет материала"
+
+msgid "No content"
+msgstr "Нет контента"
+
+msgid "No information"
+msgstr "Нет информации"
+
+msgid "No data"
+msgstr "Нет данных"
+
+msgid "No facts"
+msgstr "Нет фактов"
+
+msgid "No details"
+msgstr "Нет деталей"
+
+msgid "No particulars"
+msgstr "Нет подробностей"
+
+msgid "No specifics"
+msgstr "Нет конкретики"
+
+msgid "No features"
+msgstr "Нет функций"
+
+msgid "No characteristics"
+msgstr "Нет характеристик"
+
+msgid "No attributes"
+msgstr "Нет атрибутов"
+
+msgid "No properties"
+msgstr "Нет свойств"
+
+msgid "No qualities"
+msgstr "Нет качеств"
+
+msgid "No traits"
+msgstr "Нет черт"
+
+msgid "No aspects"
+msgstr "Нет аспектов"
+
+msgid "No elements"
+msgstr "Нет элементов"
+
+msgid "No components"
+msgstr "Нет компонентов"
+
+msgid "No parts"
+msgstr "Нет частей"
+
+msgid "No pieces"
+msgstr "Нет частей"
+
+msgid "No segments"
+msgstr "Нет сегментов"
+
+msgid "No sections"
+msgstr "Нет секций"
+
+msgid "No portions"
+msgstr "Нет порций"
+
+msgid "No shares"
+msgstr "Нет акций"
+
+msgid "No divisions"
+msgstr "Нет подразделений"
+
+msgid "No fragments"
+msgstr "Нет фрагментов"
+
+msgid "No bits"
+msgstr "Нет битов"
+
+msgid "No bytes"
+msgstr "Нет байтов"
+
+msgid "No units"
+msgstr "Нет единиц"
+
+msgid "No modules"
+msgstr "Нет модулей"
+
+msgid "No blocks"
+msgstr "Нет блоков"
+
+msgid "No chunks"
+msgstr "Нет кусков"
+
+msgid "No batches"
+msgstr "Нет партий"
+
+msgid "No lots"
+msgstr "Нет лотов"
+
+msgid "No sets"
+msgstr "Нет наборов"
+
+msgid "No collections"
+msgstr "Нет коллекций"
+
+msgid "No groups"
+msgstr "Нет групп"
+
+msgid "No series"
+msgstr "Нет серий"
+
+msgid "No sequences"
+msgstr "Нет последовательностей"
+
+msgid "No arrays"
+msgstr "Нет массивов"
+
+msgid "No lists"
+msgstr "Нет списков"
+
+msgid "No tables"
+msgstr "Нет таблиц"
+
+msgid "No charts"
+msgstr "Нет диаграмм"
+
+msgid "No graphs"
+msgstr "Нет графиков"
+
+msgid "No diagrams"
+msgstr "Нет диаграмм"
+
+msgid "No maps"
+msgstr "Нет карт"
+
+msgid "No plans"
+msgstr "Нет планов"
+
+msgid "No drawings"
+msgstr "Нет чертежей"
+
+msgid "No sketches"
+msgstr "Нет эскизов"
+
+msgid "No designs"
+msgstr "Нет дизайнов"
+
+msgid "No layouts"
+msgstr "Нет макетов"
+
+msgid "No blueprints"
+msgstr "Нет чертежей"
+
+msgid "No schematics"
+msgstr "Нет схем"
+
+msgid "No specifications"
+msgstr "Нет спецификаций"
+
+msgid "No documentation"
+msgstr "Нет документации"
+
+msgid "No manuals"
+msgstr "Нет руководств"
+
+msgid "No guides"
+msgstr "Нет руководств"
+
+msgid "No instructions"
+msgstr "Нет инструкций"
+
+msgid "No directions"
+msgstr "Нет направлений"
+
+msgid "No procedures"
+msgstr "Нет процедур"
+
+msgid "No protocols"
+msgstr "Нет протоколов"
+
+msgid "No standards"
+msgstr "Нет стандартов"
+
+msgid "No norms"
+msgstr "Нет норм"
+
+msgid "No rules"
+msgstr "Нет правил"
+
+msgid "No regulations"
+msgstr "Нет правил"
+
+msgid "No policies"
+msgstr "Нет политик"
+
+msgid "No guidelines"
+msgstr "Нет руководящих принципов"
+
+msgid "No principles"
+msgstr "Нет принципов"
+
+msgid "No criteria"
+msgstr "Нет критериев"
+
+msgid "No requirements"
+msgstr "Нет требований"
+
+msgid "No specifications"
+msgstr "Нет спецификаций"
+
+msgid "No conditions"
+msgstr "Нет условий"
+
+msgid "No terms"
+msgstr "Нет условий"
+
+msgid "No provisions"
+msgstr "Нет положений"
+
+msgid "No clauses"
+msgstr "Нет пунктов"
+
+msgid "No articles"
+msgstr "Нет статей"
+
+msgid "No sections"
+msgstr "Нет разделов"
+
+msgid "No paragraphs"
+msgstr "Нет параграфов"
+
+msgid "No subsections"
+msgstr "Нет подразделов"
+
+msgid "No subdivisions"
+msgstr "Нет подразделений"
+
+msgid "No categories"
+msgstr "Нет категорий"
+
+msgid "No classes"
+msgstr "Нет классов"
+
+msgid "No types"
+msgstr "Нет типов"
+
+msgid "No kinds"
+msgstr "Нет видов"
+
+msgid "No sorts"
+msgstr "Нет сортов"
+
+msgid "No varieties"
+msgstr "Нет разновидностей"
+
+msgid "No forms"
+msgstr "Нет форм"
+
+msgid "No shapes"
+msgstr "Нет форм"
+
+msgid "No styles"
+msgstr "Нет стилей"
+
+msgid "No modes"
+msgstr "Нет режимов"
+
+msgid "No versions"
+msgstr "Нет версий"
+
+msgid "No editions"
+msgstr "Нет изданий"
+
+msgid "No releases"
+msgstr "Нет релизов"
+
+msgid "No iterations"
+msgstr "Нет итераций"
+
+msgid "No revisions"
+msgstr "Нет ревизий"
+
+msgid "No updates"
+msgstr "Нет обновлений"
+
+msgid "No upgrades"
+msgstr "Нет обновлений"
+
+msgid "No patches"
+msgstr "Нет патчей"
+
+msgid "No fixes"
+msgstr "Нет исправлений"
+
+msgid "No corrections"
+msgstr "Нет исправлений"
+
+msgid "No adjustments"
+msgstr "Нет корректировок"
+
+msgid "No modifications"
+msgstr "Нет модификаций"
+
+msgid "No alterations"
+msgstr "Нет изменений"
+
+msgid "No changes"
+msgstr "Нет изменений"
+
+msgid "No variations"
+msgstr "Нет вариантов"
+
+msgid "No differences"
+msgstr "Нет различий"
+
+msgid "No distinctions"
+msgstr "Нет различий"
+
+msgid "No contrasts"
+msgstr "Нет контрастов"
+
+msgid "No comparisons"
+msgstr "Нет сравнений"
+
+msgid "No similarities"
+msgstr "Нет сходств"
+
+msgid "No resemblances"
+msgstr "Нет сходств"
+
+msgid "No likenesses"
+msgstr "Нет сходств"
+
+msgid "No analogies"
+msgstr "Нет аналогий"
+
+msgid "No parallels"
+msgstr "Нет параллелей"
+
+msgid "No equivalents"
+msgstr "Нет эквивалентов"
+
+msgid "No matches"
+msgstr "Нет совпадений"
+
+msgid "No correspondences"
+msgstr "Нет соответствий"
+
+msgid "No agreements"
+msgstr "Нет соглашений"
+
+msgid "No consistencies"
+msgstr "Нет согласованностей"
+
+msgid "No harmonies"
+msgstr "Нет гармоний"
+
+msgid "No balances"
+msgstr "Нет балансов"
+
+msgid "No equilibriums"
+msgstr "Нет равновесий"
+
+msgid "No stabilities"
+msgstr "Нет стабильностей"
+
+msgid "No steadiness"
+msgstr "Нет устойчивости"
+
+msgid "No constancy"
+msgstr "Нет постоянства"
+
+msgid "No permanence"
+msgstr "Нет постоянства"
+
+msgid "No continuity"
+msgstr "Нет непрерывности"
+
+msgid "No persistence"
+msgstr "Нет постоянства"
+
+msgid "No endurance"
+msgstr "Нет выносливости"
+
+msgid "No durability"
+msgstr "Нет долговечности"
+
+msgid "No longevity"
+msgstr "Нет долголетия"
+
+msgid "No sustainability"
+msgstr "Нет устойчивости"
+
+msgid "No viability"
+msgstr "Нет жизнеспособности"
+
+msgid "No feasibility"
+msgstr "Нет осуществимости"
+
+msgid "No practicability"
+msgstr "Нет практичности"
+
+msgid "No usability"
+msgstr "Нет удобства использования"
+
+msgid "No utility"
+msgstr "Нет полезности"
+
+msgid "No usefulness"
+msgstr "Нет полезности"
+
+msgid "No value"
+msgstr "Нет ценности"
+
+msgid "No worth"
+msgstr "Нет ценности"
+
+msgid "No merit"
+msgstr "Нет заслуги"
+
+msgid "No virtue"
+msgstr "Нет добродетели"
+
+msgid "No excellence"
+msgstr "Нет превосходства"
+
+msgid "No quality"
+msgstr "Нет качества"
+
+msgid "No superiority"
+msgstr "Нет превосходства"
+
+msgid "No supremacy"
+msgstr "Нет превосходства"
+
+msgid "No dominance"
+msgstr "Нет доминирования"
+
+msgid "No authority"
+msgstr "Нет авторитета"
+
+msgid "No power"
+msgstr "Нет власти"
+
+msgid "No control"
+msgstr "Нет контроля"
+
+msgid "No command"
+msgstr "Нет команды"
+
+msgid "No influence"
+msgstr "Нет влияния"
+
+msgid "No effect"
+msgstr "Нет эффекта"
+
+msgid "No impact"
+msgstr "Нет воздействия"
+
+msgid "No impression"
+msgstr "Нет впечатления"
+
+msgid "No mark"
+msgstr "Нет отметки"
+
+msgid "No sign"
+msgstr "Нет знака"
+
+msgid "No indication"
+msgstr "Нет указания"
+
+msgid "No evidence"
+msgstr "Нет доказательств"
+
+msgid "No proof"
+msgstr "Нет доказательства"
+
+msgid "No testimony"
+msgstr "Нет свидетельских показаний"
+
+msgid "No witness"
+msgstr "Нет свидетеля"
+
+msgid "No confirmation"
+msgstr "Нет подтверждения"
+
+msgid "No verification"
+msgstr "Нет проверки"
+
+msgid "No validation"
+msgstr "Нет валидации"
+
+msgid "No authentication"
+msgstr "Нет аутентификации"
+
+msgid "No certification"
+msgstr "Нет сертификации"
+
+msgid "No accreditation"
+msgstr "Нет аккредитации"
+
+msgid "No approval"
+msgstr "Нет одобрения"
+
+msgid "No endorsement"
+msgstr "Нет одобрения"
+
+msgid "No sanction"
+msgstr "Нет санкции"
+
+msgid "No permission"
+msgstr "Нет разрешения"
+
+msgid "No authorization"
+msgstr "Нет авторизации"
+
+msgid "No license"
+msgstr "Нет лицензии"
+
+msgid "No permit"
+msgstr "Нет разрешения"
+
+msgid "No pass"
+msgstr "Нет пропуска"
+
+msgid "No ticket"
+msgstr "Нет билета"
+
+msgid "No voucher"
+msgstr "Нет ваучера"
+
+msgid "No coupon"
+msgstr "Нет купона"
+
+msgid "No token"
+msgstr "Нет токена"
+
+msgid "No coin"
+msgstr "Нет монеты"
+
+msgid "No chip"
+msgstr "Нет чипа"
+
+msgid "No card"
+msgstr "Нет карты"
+
+msgid "No badge"
+msgstr "Нет значка"
+
+msgid "No tag"
+msgstr "Нет тега"
+
+msgid "No label"
+msgstr "Нет этикетки"
+
+msgid "No sticker"
+msgstr "Нет наклейки"
+
+msgid "No decal"
+msgstr "Нет наклейки"
+
+msgid "No emblem"
+msgstr "Нет эмблемы"
+
+msgid "No logo"
+msgstr "Нет логотипа"
+
+msgid "No symbol"
+msgstr "Нет символа"
+
+msgid "No icon"
+msgstr "Нет значка"
+
+msgid "No image"
+msgstr "Нет изображения"
+
+msgid "No picture"
+msgstr "Нет картинки"
+
+msgid "No photo"
+msgstr "Нет фото"
+
+msgid "No photograph"
+msgstr "Нет фотографии"
+
+msgid "No snapshot"
+msgstr "Нет снимка"
+
+msgid "No shot"
+msgstr "Нет выстрела"
+
+msgid "No frame"
+msgstr "Нет кадра"
+
+msgid "No scene"
+msgstr "Нет сцены"
+
+msgid "No view"
+msgstr "Нет вида"
+
+msgid "No sight"
+msgstr "Нет вида"
+
+msgid "No spectacle"
+msgstr "Нет зрелища"
+
+msgid "No display"
+msgstr "Нет дисплея"
+
+msgid "No screen"
+msgstr "Нет экрана"
+
+msgid "No monitor"
+msgstr "Нет монитора"
+
+msgid "No panel"
+msgstr "Нет панели"
+
+msgid "No board"
+msgstr "Нет доски"
+
+msgid "No dashboard"
+msgstr "Нет панели управления"
+
+msgid "No console"
+msgstr "Нет консоли"
+
+msgid "No terminal"
+msgstr "Нет терминала"
+
+msgid "No workstation"
+msgstr "Нет рабочей станции"
+
+msgid "No computer"
+msgstr "Нет компьютера"
+
+msgid "No machine"
+msgstr "Нет машины"
+
+msgid "No device"
+msgstr "Нет устройства"
+
+msgid "No equipment"
+msgstr "Нет оборудования"
+
+msgid "No apparatus"
+msgstr "Нет аппарата"
+
+msgid "No instrument"
+msgstr "Нет инструмента"
+
+msgid "No tool"
+msgstr "Нет инструмента"
+
+msgid "No implement"
+msgstr "Нет инструмента"
+
+msgid "No utensil"
+msgstr "Нет посуды"
+
+msgid "No appliance"
+msgstr "Нет прибора"
+
+msgid "No gadget"
+msgstr "Нет гаджета"
+
+msgid "No widget"
+msgstr "Нет виджета"
+
+msgid "No contraption"
+msgstr "Нет приспособления"
+
+msgid "No mechanism"
+msgstr "Нет механизма"
+
+msgid "No engine"
+msgstr "Нет двигателя"
+
+msgid "No motor"
+msgstr "Нет мотора"
+
+msgid "No generator"
+msgstr "Нет генератора"
+
+msgid "No turbine"
+msgstr "Нет турбины"
+
+msgid "No reactor"
+msgstr "Нет реактора"
+
+msgid "No processor"
+msgstr "Нет процессора"
+
+msgid "No controller"
+msgstr "Нет контроллера"
+
+msgid "No regulator"
+msgstr "Нет регулятора"
+
+msgid "No moderator"
+msgstr "Нет модератора"
+
+msgid "No coordinator"
+msgstr "Нет координатора"
+
+msgid "No organizer"
+msgstr "Нет организатора"
+
+msgid "No administrator"
+msgstr "Нет администратора"
+
+msgid "No manager"
+msgstr "Нет менеджера"
+
+msgid "No director"
+msgstr "Нет директора"
+
+msgid "No supervisor"
+msgstr "Нет супервизора"
+
+msgid "No overseer"
+msgstr "Нет надзирателя"
+
+msgid "No inspector"
+msgstr "Нет инспектора"
+
+msgid "No examiner"
+msgstr "Нет экзаменатора"
+
+msgid "No evaluator"
+msgstr "Нет оценщика"
+
+msgid "No assessor"
+msgstr "Нет оценщика"
+
+msgid "No auditor"
+msgstr "Нет аудитора"
+
+msgid "No reviewer"
+msgstr "Нет рецензента"
+
+msgid "No critic"
+msgstr "Нет критика"
+
+msgid "No judge"
+msgstr "Нет судьи"
+
+msgid "No arbiter"
+msgstr "Нет арбитра"
+
+msgid "No arbitrator"
+msgstr "Нет арбитра"
+
+msgid "No mediator"
+msgstr "Нет посредника"
+
+msgid "No negotiator"
+msgstr "Нет переговорщика"
+
+msgid "No diplomat"
+msgstr "Нет дипломата"
+
+msgid "No envoy"
+msgstr "Нет посланника"
+
+msgid "No representative"
+msgstr "Нет представителя"
+
+msgid "No agent"
+msgstr "Нет агента"
+
+msgid "No delegate"
+msgstr "Нет делегата"
+
+msgid "No deputy"
+msgstr "Нет заместителя"
+
+msgid "No substitute"
+msgstr "Нет заместителя"
+
+msgid "No replacement"
+msgstr "Нет замены"
+
+msgid "No successor"
+msgstr "Нет преемника"
+
+msgid "No heir"
+msgstr "Нет наследника"
+
+msgid "No inheritor"
+msgstr "Нет наследника"
+
+msgid "No beneficiary"
+msgstr "Нет бенефициара"
+
+msgid "No recipient"
+msgstr "Нет получателя"
+
+msgid "No receiver"
+msgstr "Нет получателя"
+
+msgid "No addressee"
+msgstr "Нет адресата"
+
+msgid "No target"
+msgstr "Нет цели"
+
+msgid "No destination"
+msgstr "Нет назначения"
+
+msgid "No goal"
+msgstr "Нет цели"
+
+msgid "No objective"
+msgstr "Нет цели"
+
+msgid "No aim"
+msgstr "Нет цели"
+
+msgid "No purpose"
+msgstr "Нет цели"
+
+msgid "No intention"
+msgstr "Нет намерения"
+
+msgid "No plan"
+msgstr "Нет плана"
+
+msgid "No design"
+msgstr "Нет дизайна"
+
+msgid "No scheme"
+msgstr "Нет схемы"
+
+msgid "No strategy"
+msgstr "Нет стратегии"
+
+msgid "No tactic"
+msgstr "Нет тактики"
+
+msgid "No approach"
+msgstr "Нет подхода"
+
+msgid "No method"
+msgstr "Нет метода"
+
+msgid "No technique"
+msgstr "Нет техники"
+
+msgid "No procedure"
+msgstr "Нет процедуры"
+
+msgid "No process"
+msgstr "Нет процесса"
+
+msgid "No system"
+msgstr "Нет системы"
+
+msgid "No way"
+msgstr "Нет способа"
+
+msgid "No means"
+msgstr "Нет средств"
+
+msgid "No mode"
+msgstr "Нет режима"
+
+msgid "No manner"
+msgstr "Нет способа"
+
+msgid "No fashion"
+msgstr "Нет моды"
+
+msgid "No style"
+msgstr "Нет стиля"
+
+msgid "No form"
+msgstr "Нет формы"
+
+msgid "No shape"
+msgstr "Нет формы"
+
+msgid "No type"
+msgstr "Нет типа"
+
+msgid "No kind"
+msgstr "Нет вида"
+
+msgid "No sort"
+msgstr "Нет сорта"
+
+msgid "No variety"
+msgstr "Нет разнообразия"
+
+msgid "No category"
+msgstr "Нет категории"
+
+msgid "No class"
+msgstr "Нет класса"
+
+msgid "No group"
+msgstr "Нет группы"
+
+msgid "No set"
+msgstr "Нет набора"
+
+msgid "No collection"
+msgstr "Нет коллекции"
+
+msgid "No series"
+msgstr "Нет серии"
+
+msgid "No sequence"
+msgstr "Нет последовательности"
+
+msgid "No array"
+msgstr "Нет массива"
+
+msgid "No list"
+msgstr "Нет списка"
+
+msgid "No table"
+msgstr "Нет таблицы"
+
+msgid "No chart"
+msgstr "Нет диаграммы"
+
+msgid "No graph"
+msgstr "Нет графика"
+
+msgid "No diagram"
+msgstr "Нет диаграммы"
+
+msgid "No map"
+msgstr "Нет карты"
+
+msgid "No plan"
+msgstr "Нет плана"
+
+msgid "No drawing"
+msgstr "Нет чертежа"
+
+msgid "No sketch"
+msgstr "Нет эскиза"
+
+msgid "No design"
+msgstr "Нет дизайна"
+
+msgid "No layout"
+msgstr "Нет макета"
+
+msgid "No blueprint"
+msgstr "Нет чертежа"
+
+msgid "No schematic"
+msgstr "Нет схемы"
+
+msgid "No specification"
+msgstr "Нет спецификации"
+
+msgid "No documentation"
+msgstr "Нет документации"
+
+msgid "No manual"
+msgstr "Нет руководства"
+
+msgid "No guide"
+msgstr "Нет руководства"
+
+msgid "No instruction"
+msgstr "Нет инструкции"
+
+msgid "No direction"
+msgstr "Нет направления"
+
+msgid "No procedure"
+msgstr "Нет процедуры"
+
+msgid "No protocol"
+msgstr "Нет протокола"
+
+msgid "No standard"
+msgstr "Нет стандарта"
+
+msgid "No norm"
+msgstr "Нет нормы"
+
+msgid "No rule"
+msgstr "Нет правила"
+
+msgid "No regulation"
+msgstr "Нет правила"
+
+msgid "No policy"
+msgstr "Нет политики"
+
+msgid "No guideline"
+msgstr "Нет руководства"
+
+msgid "No principle"
+msgstr "Нет принципа"
+
+msgid "No criterion"
+msgstr "Нет критерия"
+
+msgid "No requirement"
+msgstr "Нет требования"
+
+msgid "No condition"
+msgstr "Нет условия"
+
+msgid "No term"
+msgstr "Нет условия"
+
+msgid "No provision"
+msgstr "Нет положения"
+
+msgid "No clause"
+msgstr "Нет пункта"
+
+msgid "No article"
+msgstr "Нет статьи"
+
+msgid "No section"
+msgstr "Нет раздела"
+
+msgid "No paragraph"
+msgstr "Нет параграфа"
+
+msgid "No subsection"
+msgstr "Нет подраздела"
+
+msgid "No subdivision"
+msgstr "Нет подразделения"

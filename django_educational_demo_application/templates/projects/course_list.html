@@ -1,14 +1,16 @@
 {% extends "base.html" %}
 
+{% load i18n %}
+
 {% block title %}
-  Courses - Educational Project Management
+  {% translate "Courses" %} - {% translate "Educational Project Management Dashboard" %}
 {% endblock title %}
 {% block content %}
   <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h1>Courses</h1>
+      <h1>{% translate "Courses" %}</h1>
       <a href="{% url 'projects:course_create' %}" class="btn btn-primary">
-        <i class="bi bi-plus-circle"></i> New Course
+        <i class="bi bi-plus-circle"></i> {% translate "New Course" %}
       </a>
     </div>
     <!-- Filters -->
@@ -21,13 +23,13 @@
                      name="active_only"
                      class="form-check-input"
                      {% if request.GET.active_only %}checked{% endif %} />
-              <label class="form-check-label">Show active only</label>
+              <label class="form-check-label">{% translate "Show active only" %}</label>
             </div>
           </div>
           <div class="col-md-4">
-            <button type="submit" class="btn btn-primary">Filter</button>
+            <button type="submit" class="btn btn-primary">{% translate "Filter" %}</button>
             <a href="{% url 'projects:course_list' %}"
-               class="btn btn-outline-secondary">Clear</a>
+               class="btn btn-outline-secondary">{% translate "Clear" %}</a>
           </div>
         </form>
       </div>
@@ -53,44 +55,44 @@
               </div>
               <div class="mb-2">
                 <small class="text-muted">
-                  <i class="bi bi-clock"></i> {{ course.duration_days }} days
+                  <i class="bi bi-clock"></i> {{ course.duration_days }} {% translate "days" %}
                 </small>
               </div>
               <div>
                 <small class="text-muted">
-                  <i class="bi bi-people"></i> {{ course.student_count }} students
+                  <i class="bi bi-people"></i> {{ course.student_count }} {% translate "Students" %}
                 </small>
               </div>
               <div>
                 <small class="text-muted">
-                  <i class="bi bi-folder"></i> {{ course.project_count }} projects
+                  <i class="bi bi-folder"></i> {{ course.project_count }} {% translate "projects" %}
                 </small>
               </div>
             </div>
             <div class="card-footer">
               <a href="{{ course.get_absolute_url }}"
-                 class="btn btn-sm btn-outline-primary">View Details</a>
+                 class="btn btn-sm btn-outline-primary">{% translate "View Details" %}</a>
               <a href="{% url 'projects:course_update' course.pk %}"
-                 class="btn btn-sm btn-outline-secondary">Edit</a>
+                 class="btn btn-sm btn-outline-secondary">{% translate "Edit" %}</a>
             </div>
           </div>
         </div>
       {% empty %}
         <div class="col-12">
-          <p class="text-muted">No courses found. Create your first course!</p>
+          <p class="text-muted">{% translate "No courses found. Create your first course!" %}</p>
         </div>
       {% endfor %}
     </div>
     {% if is_paginated %}
-      <nav aria-label="Course pagination">
+      <nav aria-label="{% translate "Course pagination" %}">
         <ul class="pagination justify-content-center">
           {% if page_obj.has_previous %}
             <li class="page-item">
-              <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+              <a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% translate "Previous" %}</a>
             </li>
           {% else %}
             <li class="page-item disabled">
-              <span class="page-link">Previous</span>
+              <span class="page-link">{% translate "Previous" %}</span>
             </li>
           {% endif %}
           {% for num in page_obj.paginator.page_range %}
@@ -106,11 +108,11 @@
           {% endfor %}
           {% if page_obj.has_next %}
             <li class="page-item">
-              <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+              <a class="page-link" href="?page={{ page_obj.next_page_number }}">{% translate "Next" %}</a>
             </li>
           {% else %}
             <li class="page-item disabled">
-              <span class="page-link">Next</span>
+              <span class="page-link">{% translate "Next" %}</span>
             </li>
           {% endif %}
         </ul>
