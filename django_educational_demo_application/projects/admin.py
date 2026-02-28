@@ -35,7 +35,16 @@ class StudentAdmin(admin.ModelAdmin):
     list_filter = ["group", "enrolled_at"]
     search_fields = ["user__username", "student_id", "group"]
     ordering = ["user__username"]
-    readonly_fields = ["enrolled_at"]
+    readonly_fields = ["enrolled_at", "student_id"]
+    raw_id_fields = ["user"]
+
+    def has_add_permission(self, request, obj=None) -> bool:
+        """
+        Prevent manual addition - student profile is created automatically.
+
+        Admins can still edit group field for existing students.
+        """
+        return False
 
 
 @admin.register(Enrollment)
