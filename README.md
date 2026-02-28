@@ -1,8 +1,19 @@
 # Deployment of Educational Django Application
 
-Автоматизированный GitLab CI/CD pipeline для развертывания Django-приложения в Yandex Cloud.
+Автоматизированный GitLab CI/CD pipeline для развертывания Django-приложений в Yandex Cloud.
 
-## Назначение
+## О приложении
+**Django Educational Demo Application** — демонстрационное веб-приложение для управления образовательными проектами и курсами.
+Позволяет преподавателям создавать и управлять курсами, отслеживать прогресс работы над проектами, а студентам выполнять и сдавать задания.
+### Основной функционал:
+- **Курсы и зачисления** — создание учебных курсов, управление списками студентов
+- **Проекты** — создание проектов со статусами (draft → in_progress → review → completed), ссылками на репозитории и развёрнутые приложения
+- **Задачи** — разбиение проектов на подзадачи
+- **Оценивание** — выставление оценок преподавателем, отслеживание средней оценки студента
+- **Статистика** — аналитика по курсам (количество студентов, проектов, средняя оценка)
+- **Аутентификация** — регистрация/вход через социальные сети (django-allauth)
+
+## О пайплайне
 
 CI/CD pipeline обеспечивает:
 - автоматическую сборку и публикацию Docker-образов в GitLab Container Registry;
@@ -17,8 +28,8 @@ CI/CD pipeline обеспечивает:
 | Категория | Инструменты |
 |---|---|
 | Application | Django 5.2, Gunicorn, PostgreSQL, Redis |
-| Containerization | Docker, Docker Compose |
 | CI/CD | GitLab CI, GitLab Container Registry, Kaniko |
+| Containerization | Docker, Docker Compose |
 | IaC | Terraform (Yandex Cloud provider) |
 | Configuration | Ansible |
 | Testing | pytest, pytest-django, pre-commit (ruff, djLint) |
