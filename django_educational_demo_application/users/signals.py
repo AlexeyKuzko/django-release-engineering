@@ -3,8 +3,6 @@
 from django.db.models import signals
 from django.dispatch import receiver
 
-from django_educational_demo_application.projects.models import Student
-
 from .models import User
 
 
@@ -16,6 +14,8 @@ def create_student_profile(sender, instance, created, **kwargs) -> None:
     This ensures that all registered users automatically get the student role.
     """
     if created and not hasattr(instance, "student_profile"):
+        from django_educational_demo_application.projects.models import Student
+
         Student.objects.create(
             user=instance,
             student_id=f"STU{instance.pk:05d}",
