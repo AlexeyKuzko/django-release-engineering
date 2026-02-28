@@ -4,7 +4,6 @@
 from pathlib import Path
 
 import environ
-from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 # django_educational_demo_application/
@@ -29,8 +28,8 @@ TIME_ZONE = "UTC"
 LANGUAGE_CODE = "ru-ru"
 # https://docs.djangoproject.com/en/dev/ref/settings/#languages
 LANGUAGES = [
-    ("ru", _("Russian")),
-    ("en", _("English")),
+    ("ru", "Russian"),
+    ("en", "English"),
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#site-id
 SITE_ID = 1
@@ -269,6 +268,7 @@ REDIS_SSL = REDIS_URL.startswith("rediss://")
 
 # django-allauth
 # ------------------------------------------------------------------------------
+# https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_LOGIN_METHODS = {"username"}
@@ -290,6 +290,8 @@ SOCIALACCOUNT_ADAPTER = (
 SOCIALACCOUNT_FORMS = {
     "signup": "django_educational_demo_application.users.forms.UserSocialSignupForm",
 }
+# Force allauth to use Russian language
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http"
 # django-compressor
 # ------------------------------------------------------------------------------
 # https://django-compressor.readthedocs.io/en/latest/quickstart/#installation
