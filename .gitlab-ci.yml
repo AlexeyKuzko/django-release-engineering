@@ -44,6 +44,9 @@ variables:
       DEPLOY_ENV: "dev"
   - when: never
 
+.always_on_failure_rules: &always_on_failure_rules
+  - when: on_failure
+
 # Run linters: pre-commit-hooks, django-upgrade, ruff, djLint
 run_linters:
   stage: verify
@@ -391,6 +394,7 @@ ansible_deploy:
   environment:
     name: $DEPLOY_ENV
   rules: *deploy_env_rules
+  allow_failure: true
 
 # Perform health check of deployed app over HTTPS domain
 health_check:
@@ -453,6 +457,7 @@ health_check:
   environment:
     name: $DEPLOY_ENV
   rules: *deploy_env_rules
+  allow_failure: true
 
 # Rollback to previous stable image from Container Registry
 rollback:
@@ -462,7 +467,7 @@ rollback:
     ANSIBLE_CONFIG: ansible/ansible.cfg
     ANSIBLE_HOST_KEY_CHECKING: "False"
   needs:
-    - job: health_check
+    - job: ansible_deploy
     - job: terraform_apply
       artifacts: true
     - job: publish_latest
@@ -514,6 +519,7 @@ rollback:
   environment:
     name: $DEPLOY_ENV
   rules: *deploy_env_failure_rules
+  allow_failure: true
 
 # Notify in Telegram after pipeline completion
 notify_telegram_success:
@@ -524,6 +530,8 @@ notify_telegram_success:
     - job: terraform_apply
       artifacts: true
     - job: health_check
+    - job: ansible_deploy
+    - job: rollback
   script:
     - |
       if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
@@ -554,6 +562,11 @@ notify_telegram_failure:
   stage: deploy
   image: curlimages/curl:latest
   allow_failure: true
+  needs:
+    - job: ansible_deploy
+    - job: rollback
+    - job: terraform_apply
+      artifacts: true
   script:
     - |
       if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
@@ -562,6 +575,8 @@ notify_telegram_failure:
       fi
     - |
       FAILED_JOB_NAME="unknown"
+      ROLLBACK_STATUS="not_run"
+      ROLLBACK_JOB_STATUS="unknown"
       if [ -n "${CI_API_V4_URL:-}" ] && [ -n "${CI_PROJECT_ID:-}" ] && [ -n "${CI_PIPELINE_ID:-}" ] && [ -n "${CI_JOB_TOKEN:-}" ]; then
         FAILED_JOBS_JSON="$(curl -fsS --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/jobs?scope[]=failed&order_by=id&sort=desc&per_page=20" || true)"
@@ -571,6 +586,30 @@ notify_telegram_failure:
             | head -n1 \
             | cut -d':' -f2- \
             | tr -d '"' || true)"
+        fi
+
+        ROLLBACK_JOBS_JSON="$(curl -fsS --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/jobs?scope[]=success&order_by=id&sort=desc&per_page=20" || true)"
+        if [ -n "${ROLLBACK_JOBS_JSON}" ]; then
+          ROLLBACK_JOB_NAME="$(printf '%s' "${ROLLBACK_JOBS_JSON}" \
+            | grep -o '"name":"rollback"[^}]*}' \
+            | head -n1 || true)"
+          if [ -n "${ROLLBACK_JOB_NAME}" ]; then
+            ROLLBACK_STATUS="success"
+            ROLLBACK_JOB_STATUS="success"
+          fi
+        fi
+
+        ROLLBACK_FAILED_JOBS_JSON="$(curl -fsS --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/jobs?scope[]=failed&order_by=id&sort=desc&per_page=20" || true)"
+        if [ -n "${ROLLBACK_FAILED_JOBS_JSON}" ]; then
+          ROLLBACK_FAILED_JOB="$(printf '%s' "${ROLLBACK_FAILED_JOBS_JSON}" \
+            | grep -o '"name":"rollback"[^}]*}' \
+            | head -n1 || true)"
+          if [ -n "${ROLLBACK_FAILED_JOB}" ]; then
+            ROLLBACK_STATUS="failed"
+            ROLLBACK_JOB_STATUS="failed"
+          fi
         fi
       fi
       if [ -z "${FAILED_JOB_NAME}" ]; then
@@ -584,9 +623,11 @@ notify_telegram_failure:
         "branch: ${CI_COMMIT_REF_NAME}" \
         "commit: ${CI_COMMIT_SHORT_SHA}" \
         "pipeline: ${CI_PIPELINE_URL}" \
-        "failed_job: ${FAILED_JOB_NAME}")"
+        "failed_job: ${FAILED_JOB_NAME}" \
+        "rollback_status: ${ROLLBACK_STATUS}" \
+        "rollback_job_status: ${ROLLBACK_JOB_STATUS}")"
       curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
         --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
         --data-urlencode "text=${MESSAGE}" \
         --data-urlencode "disable_web_page_preview=true"
-  rules: *deploy_env_failure_rules
+  rules: *always_on_failure_rules
