@@ -1,7 +1,7 @@
 stages:
-  - test
+  - verify
   - build
-  - infra
+  - prepare
   - deploy
   - notify
 
@@ -47,7 +47,7 @@ variables:
 
 # Run linters: pre-commit-hooks, django-upgrade, ruff, djLint
 run_linters:
-  stage: test
+  stage: verify
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
   variables:
     UV_CACHE_DIR: $CI_PROJECT_DIR/.cache/uv
@@ -68,7 +68,7 @@ run_linters:
 
 # Run pytest
 run_pytest:
-  stage: test
+  stage: verify
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
   services:
     - postgres:15
@@ -140,7 +140,7 @@ publish_latest:
 
 # Create infra with terraform apply and prepare inventory from outputs
 terraform_apply:
-  stage: infra
+  stage: prepare
   image:
     name: hashicorp/terraform:1.6
     entrypoint: [""]
@@ -261,7 +261,7 @@ terraform_apply:
 
 # Manually destroy terraform resources when needed
 terraform_destroy:
-  stage: infra
+  stage: prepare
   image:
     name: hashicorp/terraform:1.6
     entrypoint: [""]
@@ -387,7 +387,8 @@ ansible_deploy:
                       django_secret_key=${DJANGO_SECRET_KEY:-change-me-in-ci}
                       django_admin_url=${DJANGO_ADMIN_URL:-admin/}
                       caddy_acme_email=${TLS_ACME_EMAIL:-admin@$APP_DOMAIN}
-                      app_subnet_cidr=${APP_SUBNET_CIDR:-10.10.1.0/24}"
+                      app_subnet_cidr=${APP_SUBNET_CIDR:-10.10.1.0/24}
+                      deploy_env=${DEPLOY_ENV}"
   environment:
     name: $DEPLOY_ENV
   rules: *deploy_env_rules
@@ -509,13 +510,14 @@ rollback:
                       django_secret_key=${DJANGO_SECRET_KEY:-change-me-in-ci}
                       django_admin_url=${DJANGO_ADMIN_URL:-admin/}
                       caddy_acme_email=${TLS_ACME_EMAIL:-admin@$APP_DOMAIN}
-                      app_subnet_cidr=${APP_SUBNET_CIDR:-10.10.1.0/24}"
+                      app_subnet_cidr=${APP_SUBNET_CIDR:-10.10.1.0/24}
+                      deploy_env=${DEPLOY_ENV}"
   environment:
     name: $DEPLOY_ENV
   rules: *deploy_env_failure_rules
 
 # Notify in Telegram after pipeline completion
-notify_telegram_success:
+notify_tg_success:
   stage: notify
   image: curlimages/curl:latest
   allow_failure: true
@@ -547,7 +549,7 @@ notify_telegram_success:
         --data-urlencode "disable_web_page_preview=true"
   rules: *deploy_env_rules
 
-notify_telegram_failure:
+notify_tg_failure:
   stage: notify
   image: curlimages/curl:latest
   allow_failure: true
@@ -559,6 +561,8 @@ notify_telegram_failure:
       fi
     - |
       FAILED_JOB_NAME="unknown"
+      ROLLBACK_STATUS="not_run"
+      ROLLBACK_JOB_STATUS="unknown"
       if [ -n "${CI_API_V4_URL:-}" ] && [ -n "${CI_PROJECT_ID:-}" ] && [ -n "${CI_PIPELINE_ID:-}" ] && [ -n "${CI_JOB_TOKEN:-}" ]; then
         FAILED_JOBS_JSON="$(curl -fsS --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/jobs?scope[]=failed&order_by=id&sort=desc&per_page=20" || true)"
@@ -568,6 +572,30 @@ notify_telegram_failure:
             | head -n1 \
             | cut -d':' -f2- \
             | tr -d '"' || true)"
+        fi
+
+        ROLLBACK_JOBS_JSON="$(curl -fsS --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/jobs?scope[]=success&order_by=id&sort=desc&per_page=20" || true)"
+        if [ -n "${ROLLBACK_JOBS_JSON}" ]; then
+          ROLLBACK_JOB_NAME="$(printf '%s' "${ROLLBACK_JOBS_JSON}" \
+            | grep -o '"name":"rollback"[^}]*}' \
+            | head -n1 || true)"
+          if [ -n "${ROLLBACK_JOB_NAME}" ]; then
+            ROLLBACK_STATUS="success"
+            ROLLBACK_JOB_STATUS="success"
+          fi
+        fi
+
+        ROLLBACK_FAILED_JOBS_JSON="$(curl -fsS --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/jobs?scope[]=failed&order_by=id&sort=desc&per_page=20" || true)"
+        if [ -n "${ROLLBACK_FAILED_JOBS_JSON}" ]; then
+          ROLLBACK_FAILED_JOB="$(printf '%s' "${ROLLBACK_FAILED_JOBS_JSON}" \
+            | grep -o '"name":"rollback"[^}]*}' \
+            | head -n1 || true)"
+          if [ -n "${ROLLBACK_FAILED_JOB}" ]; then
+            ROLLBACK_STATUS="failed"
+            ROLLBACK_JOB_STATUS="failed"
+          fi
         fi
       fi
       if [ -z "${FAILED_JOB_NAME}" ]; then
@@ -581,7 +609,9 @@ notify_telegram_failure:
         "branch: ${CI_COMMIT_REF_NAME}" \
         "commit: ${CI_COMMIT_SHORT_SHA}" \
         "pipeline: ${CI_PIPELINE_URL}" \
-        "failed_job: ${FAILED_JOB_NAME}")"
+        "failed_job: ${FAILED_JOB_NAME}" \
+        "rollback_status: ${ROLLBACK_STATUS}" \
+        "rollback_job_status: ${ROLLBACK_JOB_STATUS}")"
       curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
         --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
         --data-urlencode "text=${MESSAGE}" \

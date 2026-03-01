@@ -6,12 +6,17 @@ from django.urls import path
 from django.views import defaults as default_views
 from django.views.generic import TemplateView
 
-from config.views import HomeReadmeView
 from config.views import health_view
 
 urlpatterns = [
     path("health", health_view, name="health"),
-    path("", HomeReadmeView.as_view(), name="home"),
+    path(
+        "",
+        include(
+            "django_educational_demo_application.projects.urls",
+            namespace="projects",
+        ),
+    ),
     path(
         "about/",
         TemplateView.as_view(template_name="pages/about.html"),

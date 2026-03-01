@@ -1,8 +1,19 @@
 # Deployment of Educational Django Application
 
-Автоматизированный GitLab CI/CD pipeline для развертывания Django-приложения в Yandex Cloud.
+Автоматизированный GitLab CI/CD pipeline для развертывания Django-приложений в Yandex Cloud.
 
-## Назначение
+## О приложении
+**Django Educational Demo Application** — демонстрационное веб-приложение для управления образовательными проектами и курсами.
+Позволяет преподавателям создавать и управлять курсами, отслеживать прогресс работы над проектами, а студентам выполнять и сдавать задания.
+### Основной функционал:
+- **Курсы и зачисления** — создание учебных курсов, управление списками студентов
+- **Проекты** — создание проектов со статусами (draft → in_progress → review → completed), ссылками на репозитории и развёрнутые приложения
+- **Задачи** — разбиение проектов на подзадачи
+- **Оценивание** — выставление оценок преподавателем, отслеживание средней оценки студента
+- **Статистика** — аналитика по курсам (количество студентов, проектов, средняя оценка)
+- **Аутентификация** — регистрация/вход через социальные сети (django-allauth)
+
+## О пайплайне
 
 CI/CD pipeline обеспечивает:
 - автоматическую сборку и публикацию Docker-образов в GitLab Container Registry;
@@ -10,15 +21,15 @@ CI/CD pipeline обеспечивает:
 - конфигурацию серверов и деплой через Ansible;
 - health-check развернутого приложения;
 - автоматический откат при неудачной проверке;
-- уведомления в Telegram о результатах деплоя.
+- уведомления в Telegram (https://t.me/dedapp_notifications) о результатах деплоя.
 
 ## Технологии
 
 | Категория | Инструменты |
 |---|---|
 | Application | Django 5.2, Gunicorn, PostgreSQL, Redis |
-| Containerization | Docker, Docker Compose |
 | CI/CD | GitLab CI, GitLab Container Registry, Kaniko |
+| Containerization | Docker, Docker Compose |
 | IaC | Terraform (Yandex Cloud provider) |
 | Configuration | Ansible |
 | Testing | pytest, pytest-django, pre-commit (ruff, djLint) |
@@ -42,7 +53,7 @@ CI/CD pipeline обеспечивает:
 
 ```mermaid
 flowchart LR
-    subgraph Stage_Test ["test"]
+    subgraph Stage_Verify ["verify"]
         A1[run_linters]
         A2[run_pytest]
     end
@@ -52,7 +63,7 @@ flowchart LR
         B2[publish_latest]
     end
 
-    subgraph Stage_Infra ["infra"]
+    subgraph Stage_Prepare ["prepare"]
         C1[terraform_apply]
         C2[terraform_destroy]
     end
@@ -64,8 +75,8 @@ flowchart LR
     end
 
     subgraph Stage_Notify ["notify"]
-        E1[notify_telegram_success]
-        E2[notify_telegram_failure]
+        E1[notify_tg_success]
+        E2[notify_tg_failure]
     end
 
     A1 --> B1
@@ -88,29 +99,30 @@ flowchart LR
 > **Для наглядности диаграмма упрощена**:
 > - `publish_latest` и `terraform_apply` выполняются параллельно после `build_image`
 > - `ansible_deploy` требует артефакты от `terraform_apply` и `publish_latest`
-> - `notify_telegram_success` запускается `on_success` - когда не осталось pending/failed jobs (не только после `health_check`)
-> - `notify_telegram_failure` запускается на `on_failure` при любой ошибке (не только после `rollback`)
+> - `notify_tg_success` запускается `on_success` - когда не осталось pending/failed jobs (не только после `health_check`)
+> - `notify_tg_failure` запускается на `on_failure` при любой ошибке (не только после `rollback`)
 
 
 ### Этапы пайплайна
 
-| Stage | Job | Описание |
-|---|---|---|
-| `test` | `run_linters` | pre-commit hooks (ruff, djLint, django-upgrade) |
-| `test` | `run_pytest` | pytest с PostgreSQL service |
-| `build` | `build_image` | Kaniko: сборка и push с тегом `$CI_COMMIT_SHA` |
-| `build` | `publish_latest` | Тегирование `latest-dev`/`latest-prod` и `previous-dev`/`previous-prod` |
-| `infra` | `terraform_apply` | Создание инфраструктуры в Yandex Cloud |
-| `infra` | `terraform_destroy` | Ручное удаление инфраструктуры |
-| `deploy` | `ansible_deploy` | Деплой через Ansible + Docker Compose |
-| `deploy` | `health_check` | Проверка HTTPS `/health` и `/` |
-| `deploy` | `rollback` | Откат к `previous-<env>` при провале health_check |
-| `notify` | `notify_telegram_*` | Уведомления в Telegram |
+| Stage | Job                       | Описание                                                              |
+|---|---------------------------|-----------------------------------------------------------------------|
+| `verify` | `run_linters`             | pre-commit hooks (ruff, djLint, django-upgrade)                       |
+| `verify` | `run_pytest`              | pytest с PostgreSQL service                                           |
+| `build` | `build_image`             | Kaniko: сборка и push с тегом `$CI_COMMIT_SHA`                        |
+| `build` | `publish_latest`          | Тегирование `latest-dev`/`latest-prod` и `previous-dev`/`previous-prod` |
+| `prepare` | `terraform_apply`         | Создание инфраструктуры в Yandex Cloud                                |
+| `prepare` | `terraform_destroy`       | Ручное удаление инфраструктуры                                        |
+| `deploy` | `ansible_deploy`          | Деплой через Ansible + Docker Compose                                 |
+| `deploy` | `health_check`            | Проверка HTTPS `/health` и `/`                                        |
+| `deploy` | `rollback`                | Откат к `previous-<env>` при провале health_check                     |
+| `notify` | `notify_tg_success` | Уведомляет в Telegram об успехе со ссылками на результаты деплоя      |
+| `notify` | `notify_tg_failure` | Уведомляет в Telegram о провале с указанием конкретной job            |
 
 **Правила запуска:**
 - Ветки `main` → окружение `prod`, `dev`/`develop` → окружение `dev`
 - `terraform_destroy` запускается вручную
-- `rollback` и `notify_telegram_failure` запускаются при ошибке
+- `rollback` и `notify_tg_failure` запускаются при ошибке
 
 
 
@@ -118,7 +130,7 @@ flowchart LR
 
 ### Полностью реализовано ✅
 
-- **CI Pipeline:** test → build → (publish \|\| terraform) → deploy → health_check → rollback/notify
+- **CI Pipeline:** verify → build → (publish || prepare) → deploy → notify
 - **Terraform IaC:** VPC, subnets (public/private), NAT Gateway, security groups, VM (app/db/monitoring), опциональная DNS-зона
 - **Ansible деплой:** idempotent-роли для app, db, monitoring; авто-определение docker-compose команды
 - **Image Tagging:** commit SHA + `latest-dev/latest-prod` + `previous-dev/previous-prod` (для rollback)
@@ -201,10 +213,10 @@ Production-переменные: `DJANGO_SECRET_KEY`, `DJANGO_ADMIN_URL`, `DJANG
                     │   GitLab CI   │
                     │   Pipeline    │
                     │               │
-                    │ test→         │
+                    │ verify→       │
                     │ build→(publish│
-                    │ ||terraform)→ │
-                    │ deploy→check  │
+                    │ ||prepare)→   │
+                    │ deploy→notify │
                     └───────────────┘
 ```
 

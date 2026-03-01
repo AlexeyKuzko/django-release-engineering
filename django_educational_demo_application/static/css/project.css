@@ -50,3 +50,16 @@
   padding: 0.6rem;
   border: 1px solid #dee2e6;
 }
+
+.progress-fixed-height {
+  height: 20px;
+}
+
+.progress-small {
+  height: 20px;
+  width: 100px;
+}
+
+.progress-medium {
+  height: 25px;
+}

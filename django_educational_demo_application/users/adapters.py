@@ -17,6 +17,9 @@ class AccountAdapter(DefaultAccountAdapter):
     def is_open_for_signup(self, request: HttpRequest) -> bool:
         return getattr(settings, "ACCOUNT_ALLOW_REGISTRATION", True)
 
+    def send_mail(self, template_prefix: str, email: str, ctx: dict) -> None:
+        """Do not send emails - disabled for demo."""
+
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
     def is_open_for_signup(

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% load i18n %}
+
+{% block title %}
+  {{ student.user.username }} - {% translate "Student Profile" %}
+{% endblock title %}
+{% block content %}
+  <div class="container mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a href="{% url 'projects:dashboard' %}">{% translate "Dashboard" %}</a>
+        </li>
+        <li class="breadcrumb-item">
+          <a href="{% url 'projects:student_list' %}">{% translate "Students" %}</a>
+        </li>
+        <li class="breadcrumb-item active">{{ student.user.username }}</li>
+      </ol>
+    </nav>
+    <!-- Student Profile -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="h4 mb-0">{{ student.user.username }}</h3>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-4">
+            <strong>{% translate "Student ID" %}:</strong>
+            <br />
+            {{ student.student_id }}
+          </div>
+          <div class="col-md-4">
+            <strong>{% translate "Group" %}:</strong>
+            <br />
+            {% if student.group %}
+              {{ student.group }}
+            {% else %}
+              {% translate "Not assigned" %}
+            {% endif %}
+          </div>
+          <div class="col-md-4">
+            <strong>{% translate "Enrolled At" %}:</strong>
+            <br />
+            {{ student.enrolled_at|date:"M d, Y" }}
+          </div>
+        </div>
+        {% if average_score %}
+          <div class="row mt-3">
+            <div class="col-md-4">
+              <strong>{% translate "Average Score" %}:</strong>
+              <br />
+              <span class="badge bg-success">{{ average_score|floatformat:1 }}</span>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="row">
+      <!-- Projects -->
+      <div class="col-md-8">
+        <div class="card mb-4">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{% translate "Projects" %}</h5>
+            <a href="{% url 'projects:project_create' %}?student={{ student.pk }}"
+               class="btn btn-sm btn-primary">
+              <i class="bi bi-plus-circle"></i> {% translate "New Project" %}
+            </a>
+          </div>
+          <div class="card-body">
+            {% if projects %}
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>{% translate "Title" %}</th>
+                      <th>{% translate "Course" %}</th>
+                      <th>{% translate "Status" %}</th>
+                      <th>{% translate "Score" %}</th>
+                      <th>{% translate "Progress" %}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for project in projects %}
+                      <tr>
+                        <td>
+                          <a href="{{ project.get_absolute_url }}">{{ project.title }}</a>
+                        </td>
+                        <td>{{ project.course.code }}</td>
+                        <td>
+                          <span class="badge bg-{% if project.status == 'completed' %}success{% elif project.status == 'in_progress' %}warning{% elif project.status == 'draft' %}secondary{% else %}info{% endif %}">
+                            {{ project.get_status_display }}
+                          </span>
+                        </td>
+                        <td>
+                          {% if project.score %}
+                            <span class="badge bg-success">{{ project.score }}</span>
+                          {% else %}
+                            <span class="text-muted">-</span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          <div class="progress progress-small">
+                            <div class="progress-bar"
+                                 role="progressbar"
+                                 style="width: {{ project.progress_percentage }}%"
+                                 aria-valuenow="{{ project.progress_percentage }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">{{ project.progress_percentage }}%</div>
+                          </div>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="text-muted">{% translate "No projects yet." %}</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <!-- Course Enrollments -->
+      <div class="col-md-4">
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="mb-0">{% translate "Course Enrollments" %}</h5>
+          </div>
+          <div class="card-body">
+            {% if enrollments %}
+              <ul class="list-group list-group-flush">
+                {% for enrollment in enrollments %}
+                  <li class="list-group-item">
+                    <a href="{{ enrollment.course.get_absolute_url }}">{{ enrollment.course.code }}</a>
+                    <small class="text-muted d-block">{{ enrollment.course.name }}</small>
+                    {% if not enrollment.is_active %}
+                      <span class="badge bg-secondary">{% translate "Inactive" %}</span>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-muted">{% translate "Not enrolled in any courses." %}</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

@@ -13,7 +13,7 @@
     </title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description"
-          content="This is a demo app to demonstrate DevOps skills" />
+          content="Это демонстрационное приложение для демонстрации навыков DevOps" />
     <meta name="author" content="Alexey Kuzko" />
     <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
     {% block css %}
@@ -60,14 +60,23 @@
                     aria-label="Toggle navigation">
               <span class="navbar-toggler-icon"></span>
             </button>
-            <a class="navbar-brand" href="{% url 'home' %}">Django Educational Demo Application</a>
+            <a class="navbar-brand" href="{% url 'projects:dashboard' %}">{% translate "Django Educational Demo Application" %}</a>
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
               <ul class="navbar-nav mr-auto">
                 <li class="nav-item active">
-                  <a class="nav-link" href="{% url 'home' %}">Home <span class="visually-hidden">(current)</span></a>
+                  <a class="nav-link" href="{% url 'projects:dashboard' %}">{% translate "Dashboard" %} <span class="visually-hidden">(current)</span></a>
                 </li>
                 <li class="nav-item">
-                  <a class="nav-link" href="{% url 'about' %}">About</a>
+                  <a class="nav-link" href="{% url 'projects:project_list' %}">{% translate "Projects" %}</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="{% url 'projects:course_list' %}">{% translate "Courses" %}</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="{% url 'projects:student_list' %}">{% translate "Students" %}</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="{% url 'about' %}">{% translate "About" %}</a>
                 </li>
                 {% if request.user.is_authenticated %}
                   <li class="nav-item">
@@ -110,7 +119,7 @@
         {% block main %}
           {% block content %}
             <p>
-              This is a demo project that demonstrates the use of Django, Docker, and GitLab CI/CD for a simple web application deployment.
+              {% translate "Это демонстрационный проект, демонстрирующий использование Django, Docker и GitLab CI/CD для простого развертывания веб-приложения." %}
             </p>
           {% endblock content %}
         {% endblock main %}
