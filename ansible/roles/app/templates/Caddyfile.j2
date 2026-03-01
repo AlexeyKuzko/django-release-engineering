@@ -13,7 +13,9 @@
 
 https://{{ app_public_ip }} {
 {% if is_dev %}
-  tls internal
+  tls internal {
+    ca off
+  }
 {% endif %}
   encode gzip zstd
   reverse_proxy web:8000
@@ -27,7 +29,9 @@ http://{{ app_public_ip }} {
 {% if app_domain_is_ipv4 %}
 https://{{ app_domain }} {
 {% if is_dev %}
-  tls internal
+  tls internal {
+    ca off
+  }
 {% endif %}
   encode gzip zstd
   reverse_proxy web:8000
@@ -38,12 +42,19 @@ http://{{ app_domain }} {
   reverse_proxy web:8000
 }
 {% else %}
-{{ app_domain }} {
 {% if is_dev %}
-  tls internal
-{% endif %}
+{{ app_domain }} {
+  tls internal {
+    ca off
+  }
   encode gzip zstd
   reverse_proxy web:8000
 }
+{% else %}
+{{ app_domain }} {
+  encode gzip zstd
+  reverse_proxy web:8000
+}
+{% endif %}
 {% endif %}
 {% endif %}
