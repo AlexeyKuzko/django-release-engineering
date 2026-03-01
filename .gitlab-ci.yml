@@ -86,7 +86,7 @@ run_pytest:
 # Check repo files for leaks of secrets
 secret_scan:
   stage: security
-  image: 
+  image:
     name: zricethezav/gitleaks:latest
     entrypoint: [""]
   needs:
