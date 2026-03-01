@@ -1,5 +1,10 @@
 stages:
+<<<<<<< HEAD
   - verify
+=======
+  - test
+  - security
+>>>>>>> devmat
   - build
   - prepare
   - deploy
@@ -79,6 +84,96 @@ run_pytest:
     - uv sync --locked
   script:
     - uv run pytest
+################################################################# TEST -> SECURITY #################################################################
+
+
+# Check repo files for leaks of secrets
+secret_scan:
+  stage: security
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
+  needs:
+    - job: run_linters
+    - job: run_pytest
+  script:
+    - gitleaks detect --source . --no-git --redact
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "release"'
+      allow_failure: false
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+      allow_failure: true
+    - if: '$CI_COMMIT_BRANCH == "devmat"'
+      allow_failure: true
+    - when: never
+
+# Dependancy scan
+dependency_scan:
+  stage: security
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm
+  needs:
+    - job: run_linters
+    - job: run_pytest
+  before_script:
+    - uv sync --locked
+    - uv pip install pip-audit
+  script:
+    - |
+      echo "Running pip-audit for branch: $CI_COMMIT_BRANCH"
+
+      if [ "$CI_COMMIT_BRANCH" = "release" ]; then
+        echo "Strict mode: fail on any vulnerability"
+        uv run pip-audit
+        exit $?
+      fi
+
+      if [ "$CI_COMMIT_BRANCH" = "develop" ]; then
+        echo "Develop mode: fail only on CRITICAL vulnerabilities"
+        uv run pip-audit -f json > audit.json || true
+
+        if grep -qi '"severity": *"critical"' audit.json; then
+          echo "Critical vulnerabilities found. Failing."
+          exit 1
+        else
+          echo "No critical vulnerabilities found. Continuing."
+          exit 0
+        fi
+      else uv run pip-audit -f json > audit.json || true
+      fi
+      exit 0
+  artifacts:
+    when: always
+    paths:
+      - audit.json
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "release"'
+      allow_failure: false
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+      allow_failure: false
+    - if: '$CI_COMMIT_BRANCH == "devmat"'
+      allow_failure: true
+    - when: never
+
+# Static application security testing (unsafe code contructions, possible sql injections, xss, unsifa file handling and unsafe django settings)
+sast_semgrep:
+  stage: security
+  image: returntocorp/semgrep:latest
+  needs:
+    - job: run_linters
+    - job: run_pytest
+  script:
+    - semgrep --config p/ci --error .
+  rules:
+  - if: '$CI_COMMIT_BRANCH == "release"'
+    allow_failure: false
+  - if: '$CI_COMMIT_BRANCH == "develop"'
+    allow_failure: true
+  - if: '$CI_COMMIT_BRANCH == "devmat"'
+    allow_failure: true
+  - when: never
+
+################################################################# SECURITY -> BUILD #################################################################
+
 
 # Build with kaniko
 build_image:
@@ -137,6 +232,9 @@ publish_latest:
     paths:
       - previous.env
   rules: *deploy_env_rules
+
+
+################################################################# BUILD -> INFRA #################################################################
 
 # Create infra with terraform apply and prepare inventory from outputs
 terraform_apply:
@@ -340,6 +438,8 @@ terraform_destroy:
     name: $DEPLOY_ENV
   rules: *deploy_env_manual_rules
 
+################################################################# INFRA -> DEPLOY #################################################################
+
 # Deploy app, database and monitoring via Ansible
 ansible_deploy:
   stage: deploy
@@ -515,6 +615,8 @@ rollback:
   environment:
     name: $DEPLOY_ENV
   rules: *deploy_env_failure_rules
+
+################################################################# DEPLOY -> NOTIFY #################################################################
 
 # Notify in Telegram after pipeline completion
 notify_tg_success:
