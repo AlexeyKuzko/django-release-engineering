@@ -1,6 +1,8 @@
 {
   email {{ caddy_acme_email }}
   default_sni {{ app_public_ip }}
+  acme_ca https://acme.zerossl.com/v2/DV90
+  acme_ca https://acme-v02.api.letsencrypt.org/directory
 }
 
 {% set app_domain_is_ipv4 = app_domain | regex_search('^\d+\.\d+\.\d+\.\d+$') %}
