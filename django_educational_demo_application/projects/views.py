@@ -2,6 +2,7 @@
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
+from django.db import transaction
 from django.db.models import Avg
 from django.db.models import Count
 from django.db.models import Q
@@ -282,8 +283,9 @@ class ProjectCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
     def get_success_url(self):
         return reverse("projects:project_detail", kwargs={"pk": self.object.pk})
 
+    @transaction.atomic
     def form_valid(self, form):
-        """Set default values before saving."""
+        """Set default values before saving and create initial status log."""
         response = super().form_valid(form)
         # Create initial status log
         project_status_log_model = self.model.status_logs.rel.related_model
