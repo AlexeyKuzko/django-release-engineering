@@ -1,10 +1,6 @@
 stages:
-<<<<<<< HEAD
   - verify
-=======
-  - test
   - security
->>>>>>> devmat
   - build
   - prepare
   - deploy
