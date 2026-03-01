@@ -134,9 +134,8 @@ dependency_scan:
           echo "No critical vulnerabilities found. Continuing."
           exit 0
         fi
+      else uv run pip-audit -f json > audit.json || true
       fi
-
-      echo "Security scan skipped for this branch."
       exit 0
   artifacts:
     when: always
