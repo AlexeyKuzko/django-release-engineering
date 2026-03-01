@@ -23,6 +23,18 @@ class UserAdminCreationForm(admin_forms.AdminUserCreationForm):
             "username": {"unique": _("This username has already been taken.")},
         }
 
+    def save(self, commit=True):  # noqa: FBT002
+        """Save user and create student profile automatically."""
+        user = super().save(commit=commit)
+        if commit and not hasattr(user, "student_profile"):
+            from django_educational_demo_application.projects.models import Student
+
+            Student.objects.create(
+                user=user,
+                student_id=f"STU{user.pk:05d}",
+            )
+        return user
+
 
 class UserSignupForm(SignupForm):
     """

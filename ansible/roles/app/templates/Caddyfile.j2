@@ -1,13 +1,20 @@
-{
-  email {{ caddy_acme_email }}
-  default_sni {{ app_public_ip }}
-}
-
+{% set is_dev = (deploy_env | default('dev')) == 'dev' %}
 {% set app_domain_is_ipv4 = app_domain | regex_search('^\d+\.\d+\.\d+\.\d+$') %}
 {% set app_domain_equals_public_ip = app_domain == app_public_ip %}
 
+{% if is_dev %}
+# Dev environment - using internal/self-signed certificates
+{% endif %}
+
 https://{{ app_public_ip }} {
+{% if is_dev %}
   tls internal
+{% else %}
+  tls {
+    ca https://acme.zerossl.com/v2/DV90
+    ca https://acme-v02.api.letsencrypt.org/directory
+  }
+{% endif %}
   encode gzip zstd
   reverse_proxy web:8000
 }
@@ -19,7 +26,14 @@ http://{{ app_public_ip }} {
 {% if not app_domain_equals_public_ip %}
 {% if app_domain_is_ipv4 %}
 https://{{ app_domain }} {
+{% if is_dev %}
   tls internal
+{% else %}
+  tls {
+    ca https://acme.zerossl.com/v2/DV90
+    ca https://acme-v02.api.letsencrypt.org/directory
+  }
+{% endif %}
   encode gzip zstd
   reverse_proxy web:8000
 }
@@ -29,9 +43,21 @@ http://{{ app_domain }} {
   reverse_proxy web:8000
 }
 {% else %}
+{% if is_dev %}
 {{ app_domain }} {
+  tls internal
   encode gzip zstd
   reverse_proxy web:8000
 }
+{% else %}
+{{ app_domain }} {
+  tls {
+    ca https://acme.zerossl.com/v2/DV90
+    ca https://acme-v02.api.letsencrypt.org/directory
+  }
+  encode gzip zstd
+  reverse_proxy web:8000
+}
+{% endif %}
 {% endif %}
 {% endif %}

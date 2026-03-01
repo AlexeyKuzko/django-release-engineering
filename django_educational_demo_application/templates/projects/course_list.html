@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% load i18n %}
+
+{% block title %}
+  {% translate "Courses" %} - {% translate "Educational Project Management Dashboard" %}
+{% endblock title %}
+{% block content %}
+  <div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1>{% translate "Courses" %}</h1>
+      <a href="{% url 'projects:course_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> {% translate "New Course" %}
+      </a>
+    </div>
+    <!-- Filters -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <form method="get" class="row g-3">
+          <div class="col-md-4">
+            <div class="form-check">
+              <input type="checkbox"
+                     name="active_only"
+                     class="form-check-input"
+                     {% if request.GET.active_only %}checked{% endif %} />
+              <label class="form-check-label">{% translate "Show active only" %}</label>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <button type="submit" class="btn btn-primary">{% translate "Filter" %}</button>
+            <a href="{% url 'projects:course_list' %}"
+               class="btn btn-outline-secondary">{% translate "Clear" %}</a>
+          </div>
+        </form>
+      </div>
+    </div>
+    <!-- Courses Grid -->
+    <div class="row">
+      {% for course in courses %}
+        <div class="col-md-6 col-lg-4 mb-4">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">{{ course.code }}</h5>
+              <span class="badge bg-{% if course.status == 'active' %}success{% elif course.status == 'upcoming' %}warning{% else %}secondary{% endif %}">
+                {{ course.get_status_display|default:course.status }}
+              </span>
+            </div>
+            <div class="card-body">
+              <h6 class="card-title">{{ course.name }}</h6>
+              <p class="card-text text-muted small">{{ course.description|truncatewords:20 }}</p>
+              <div class="mb-2">
+                <small class="text-muted">
+                  <i class="bi bi-calendar"></i> {{ course.start_date|date:"M d, Y" }} - {{ course.end_date|date:"M d, Y" }}
+                </small>
+              </div>
+              <div class="mb-2">
+                <small class="text-muted">
+                  <i class="bi bi-clock"></i> {{ course.duration_days }} {% translate "days" %}
+                </small>
+              </div>
+              <div>
+                <small class="text-muted">
+                  <i class="bi bi-people"></i> {{ course.student_count }} {% translate "Students" %}
+                </small>
+              </div>
+              <div>
+                <small class="text-muted">
+                  <i class="bi bi-folder"></i> {{ course.project_count }} {% translate "projects" %}
+                </small>
+              </div>
+            </div>
+            <div class="card-footer">
+              <a href="{{ course.get_absolute_url }}"
+                 class="btn btn-sm btn-outline-primary">{% translate "View Details" %}</a>
+              <a href="{% url 'projects:course_update' course.pk %}"
+                 class="btn btn-sm btn-outline-secondary">{% translate "Edit" %}</a>
+            </div>
+          </div>
+        </div>
+      {% empty %}
+        <div class="col-12">
+          <p class="text-muted">{% translate "No courses found. Create your first course!" %}</p>
+        </div>
+      {% endfor %}
+    </div>
+    {% if is_paginated %}
+      <nav aria-label="{% translate "Course pagination" %}">
+        <ul class="pagination justify-content-center">
+          {% if page_obj.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% translate "Previous" %}</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">{% translate "Previous" %}</span>
+            </li>
+          {% endif %}
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+              <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+              </li>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+              </li>
+            {% endif %}
+          {% endfor %}
+          {% if page_obj.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ page_obj.next_page_number }}">{% translate "Next" %}</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">{% translate "Next" %}</span>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+    {% endif %}
+  </div>
+{% endblock content %}
