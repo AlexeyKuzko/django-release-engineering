@@ -522,6 +522,8 @@ notify_telegram_success:
   allow_failure: true
   dependencies:
     - terraform_apply
+  needs:
+    - job: health_check
   script:
     - |
       if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then

@@ -72,7 +72,8 @@ flowchart LR
         D1[ansible_deploy]
         D2[health_check]
         D3[rollback]
-        D4[notify]
+        D4[notify_telegram_success]
+        D5[notify_telegram_failure]
     end
 
     A1 --> B1
@@ -85,7 +86,8 @@ flowchart LR
     D1 --> D2
     D2 -->|success| D4
     D2 -->|failure| D3
-    D3 --> D4
+    D3 --> D5
+    
 
     style D3 fill:green
     style D4 fill:green
@@ -94,7 +96,6 @@ flowchart LR
 > **Для наглядности диаграмма упрощена**:
 > - `publish_latest` и `terraform_apply` выполняются параллельно после `build_image`
 > - `ansible_deploy` требует артефакты от `terraform_apply` и `publish_latest`
-> - `notify_telegram_success` запускается `on_success` - когда не осталось pending/failed jobs (не только после `health_check`)
 > - `notify_telegram_failure` запускается на `on_failure` при любой ошибке (не только после `rollback`)
 
 
