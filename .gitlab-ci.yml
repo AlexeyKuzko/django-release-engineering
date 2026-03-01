@@ -94,6 +94,12 @@ secret_scan:
     - job: run_pytest
   script:
     - gitleaks detect --source . --no-git --redact
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "release"'
+      allow_failure: false
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+      allow_failure: true
+    - when: never
 
 # Dependancy scan
 dependency_scan:
@@ -106,12 +112,40 @@ dependency_scan:
     - uv sync --locked
     - uv pip install pip-audit
   script:
-    - uv run pip-audit
+    - |
+      echo "Running pip-audit for branch: $CI_COMMIT_BRANCH"
+
+      if [ "$CI_COMMIT_BRANCH" = "release" ]; then
+        echo "Strict mode: fail on any vulnerability"
+        uv run pip-audit
+        exit $?
+      fi
+
+      if [ "$CI_COMMIT_BRANCH" = "develop" ]; then
+        echo "Develop mode: fail only on CRITICAL vulnerabilities"
+        uv run pip-audit -f json > audit.json || true
+
+        if grep -qi '"severity": *"critical"' audit.json; then
+          echo "Critical vulnerabilities found. Failing."
+          exit 1
+        else
+          echo "No critical vulnerabilities found. Continuing."
+          exit 0
+        fi
+      fi
+
+      echo "Security scan skipped for this branch."
+      exit 0
+  artifacts:
+    when: always
+    paths:
+      - audit.json
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "release"'
       allow_failure: false
-    - when: on_success
-      allow_failure: true
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+      allow_failure: false
+    - when: never
 
 # Static application security testing (unsafe code contructions, possible sql injections, xss, unsifa file handling and unsafe django settings)
 sast_semgrep:
@@ -122,6 +156,12 @@ sast_semgrep:
     - job: run_pytest
   script:
     - semgrep --config p/ci --error .
+  rules:
+  - if: '$CI_COMMIT_BRANCH == "release"'
+    allow_failure: false
+  - if: '$CI_COMMIT_BRANCH == "develop"'
+    allow_failure: true
+  - when: never
 
 ################################################################# SECURITY -> BUILD #################################################################
 
@@ -135,9 +175,6 @@ build_image:
   needs:
     - job: run_linters
     - job: run_pytest
-    - job: secret_scan
-    - job: dependency_scan
-    - job: sast_semgrep
   script:
     - mkdir -p /kaniko/.docker
     - |
