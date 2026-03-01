@@ -86,7 +86,9 @@ run_pytest:
 # Check repo files for leaks of secrets
 secret_scan:
   stage: security
-  image: zricethezav/gitleaks:latest
+  image: 
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
   needs:
     - job: run_linters
     - job: run_pytest
@@ -97,23 +99,19 @@ secret_scan:
 dependency_scan:
   stage: security
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
-  variables:
-    UV_CACHE_DIR: $CI_PROJECT_DIR/.cache/uv
-  cache:
-    key:
-      files:
-        - uv.lock
-    paths:
-      - .cache/uv
   needs:
     - job: run_linters
     - job: run_pytest
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends gcc
     - uv sync --locked
-  script:
     - uv pip install pip-audit
+  script:
     - uv run pip-audit
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      allow_failure: false
+    - when: on_success
+      allow_failure: true
 
 # Static application security testing (unsafe code contructions, possible sql injections, xss, unsifa file handling and unsafe django settings)
 sast_semgrep:
@@ -123,7 +121,7 @@ sast_semgrep:
     - job: run_linters
     - job: run_pytest
   script:
-    - semgrep --config p/ci --error
+    - semgrep --config p/ci --error .
 
 ################################################################# SECURITY -> BUILD #################################################################
 
