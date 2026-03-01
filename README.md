@@ -87,7 +87,7 @@ flowchart LR
     D2 -->|success| D4
     D2 -->|failure| D3
     D3 --> D5
-    
+
 
     style D3 fill:green
     style D4 fill:green
