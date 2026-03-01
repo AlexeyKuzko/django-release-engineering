@@ -520,9 +520,9 @@ notify_telegram_success:
   stage: deploy
   image: curlimages/curl:latest
   allow_failure: true
-  dependencies:
-    - terraform_apply
   needs:
+    - job: terraform_apply
+      artifacts: true
     - job: health_check
   script:
     - |
