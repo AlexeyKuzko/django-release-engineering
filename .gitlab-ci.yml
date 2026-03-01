@@ -387,7 +387,8 @@ ansible_deploy:
                       django_secret_key=${DJANGO_SECRET_KEY:-change-me-in-ci}
                       django_admin_url=${DJANGO_ADMIN_URL:-admin/}
                       caddy_acme_email=${TLS_ACME_EMAIL:-admin@$APP_DOMAIN}
-                      app_subnet_cidr=${APP_SUBNET_CIDR:-10.10.1.0/24}"
+                      app_subnet_cidr=${APP_SUBNET_CIDR:-10.10.1.0/24}
+                      deploy_env=${DEPLOY_ENV}"
   environment:
     name: $DEPLOY_ENV
   rules: *deploy_env_rules
@@ -509,7 +510,8 @@ rollback:
                       django_secret_key=${DJANGO_SECRET_KEY:-change-me-in-ci}
                       django_admin_url=${DJANGO_ADMIN_URL:-admin/}
                       caddy_acme_email=${TLS_ACME_EMAIL:-admin@$APP_DOMAIN}
-                      app_subnet_cidr=${APP_SUBNET_CIDR:-10.10.1.0/24}"
+                      app_subnet_cidr=${APP_SUBNET_CIDR:-10.10.1.0/24}
+                      deploy_env=${DEPLOY_ENV}"
   environment:
     name: $DEPLOY_ENV
   rules: *deploy_env_failure_rules
