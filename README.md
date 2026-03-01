@@ -21,7 +21,7 @@ CI/CD pipeline обеспечивает:
 - конфигурацию серверов и деплой через Ansible;
 - health-check развернутого приложения;
 - автоматический откат при неудачной проверке;
-- уведомления в Telegram о результатах деплоя.
+- уведомления в Telegram (https://t.me/dedapp_notifications) о результатах деплоя.
 
 ## Технологии
 
@@ -72,8 +72,11 @@ flowchart LR
         D1[ansible_deploy]
         D2[health_check]
         D3[rollback]
-        D4[notify_telegram_success]
-        D5[notify_telegram_failure]
+    end
+
+    subgraph Stage_Notify ["notify"]
+        E1[notify_tg_success]
+        E2[notify_tg_failure]
     end
 
     A1 --> B1
@@ -84,41 +87,42 @@ flowchart LR
     C1 -. manual .-> C2
     C1 --> D1
     D1 --> D2
-    D2 -->|success| D4
+    D2 -->|success| E1
     D2 -->|failure| D3
-    D3 --> D5
-
+    D3 --> E2
 
     style D3 fill:green
-    style D4 fill:green
+    style E1 fill:green
+    style E2 fill:orange
 ```
 
 > **Для наглядности диаграмма упрощена**:
 > - `publish_latest` и `terraform_apply` выполняются параллельно после `build_image`
 > - `ansible_deploy` требует артефакты от `terraform_apply` и `publish_latest`
-> - `notify_telegram_failure` запускается на `on_failure` при любой ошибке (не только после `rollback`)
+> - `notify_tg_success` запускается `on_success` - когда не осталось pending/failed jobs (не только после `health_check`)
+> - `notify_tg_failure` запускается на `on_failure` при любой ошибке (не только после `rollback`)
 
 
 ### Этапы пайплайна
 
-| Stage | Job                       | Описание                                                                     |
-|---|---------------------------|------------------------------------------------------------------------------|
-| `verify` | `run_linters`             | pre-commit hooks (ruff, djLint, django-upgrade)                              |
-| `verify` | `run_pytest`              | pytest с PostgreSQL service                                                  |
-| `build` | `build_image`             | Kaniko: сборка и push с тегом `$CI_COMMIT_SHA`                               |
-| `build` | `publish_latest`          | Тегирование `latest-dev`/`latest-prod` и `previous-dev`/`previous-prod`      |
-| `prepare` | `terraform_apply`         | Создание инфраструктуры в Yandex Cloud                                       |
-| `prepare` | `terraform_destroy`       | Ручное удаление инфраструктуры                                               |
-| `deploy` | `ansible_deploy`          | Деплой через Ansible + Docker Compose                                        |
-| `deploy` | `health_check`            | Проверка HTTPS `/health` и `/`                                               |
-| `deploy` | `rollback`                | Откат к `previous-<env>` при провале health_check                            |
-| `deploy` | `notify_telegram_success` | Уведомления в Telegram об успехе деплоя                                      |
-| `deploy` | `notify_telegram_failure` | Уведомления в Telegram об ошибке пайплайна с указанием конкретной failed job |
+| Stage | Job                       | Описание                                                              |
+|---|---------------------------|-----------------------------------------------------------------------|
+| `verify` | `run_linters`             | pre-commit hooks (ruff, djLint, django-upgrade)                       |
+| `verify` | `run_pytest`              | pytest с PostgreSQL service                                           |
+| `build` | `build_image`             | Kaniko: сборка и push с тегом `$CI_COMMIT_SHA`                        |
+| `build` | `publish_latest`          | Тегирование `latest-dev`/`latest-prod` и `previous-dev`/`previous-prod` |
+| `prepare` | `terraform_apply`         | Создание инфраструктуры в Yandex Cloud                                |
+| `prepare` | `terraform_destroy`       | Ручное удаление инфраструктуры                                        |
+| `deploy` | `ansible_deploy`          | Деплой через Ansible + Docker Compose                                 |
+| `deploy` | `health_check`            | Проверка HTTPS `/health` и `/`                                        |
+| `deploy` | `rollback`                | Откат к `previous-<env>` при провале health_check                     |
+| `notify` | `notify_tg_success` | Уведомляет в Telegram об успехе со ссылками на результаты деплоя      |
+| `notify` | `notify_tg_failure` | Уведомляет в Telegram о провале с указанием конкретной job            |
 
 **Правила запуска:**
 - Ветки `main` → окружение `prod`, `dev`/`develop` → окружение `dev`
 - `terraform_destroy` запускается вручную
-- `rollback` и `notify_telegram_failure` запускаются при ошибке
+- `rollback` и `notify_tg_failure` запускаются при ошибке
 
 
 

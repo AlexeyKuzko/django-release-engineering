@@ -3,6 +3,7 @@ stages:
   - build
   - prepare
   - deploy
+  - notify
 
 variables:
   IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
@@ -43,9 +44,6 @@ variables:
     variables:
       DEPLOY_ENV: "dev"
   - when: never
-
-.always_on_failure_rules: &always_on_failure_rules
-  - when: on_failure
 
 # Run linters: pre-commit-hooks, django-upgrade, ruff, djLint
 run_linters:
@@ -394,7 +392,6 @@ ansible_deploy:
   environment:
     name: $DEPLOY_ENV
   rules: *deploy_env_rules
-  allow_failure: true
 
 # Perform health check of deployed app over HTTPS domain
 health_check:
@@ -457,7 +454,6 @@ health_check:
   environment:
     name: $DEPLOY_ENV
   rules: *deploy_env_rules
-  allow_failure: true
 
 # Rollback to previous stable image from Container Registry
 rollback:
@@ -467,7 +463,7 @@ rollback:
     ANSIBLE_CONFIG: ansible/ansible.cfg
     ANSIBLE_HOST_KEY_CHECKING: "False"
   needs:
-    - job: ansible_deploy
+    - job: health_check
     - job: terraform_apply
       artifacts: true
     - job: publish_latest
@@ -519,19 +515,14 @@ rollback:
   environment:
     name: $DEPLOY_ENV
   rules: *deploy_env_failure_rules
-  allow_failure: true
 
 # Notify in Telegram after pipeline completion
-notify_telegram_success:
-  stage: deploy
+notify_tg_success:
+  stage: notify
   image: curlimages/curl:latest
   allow_failure: true
-  needs:
-    - job: terraform_apply
-      artifacts: true
-    - job: health_check
-    - job: ansible_deploy
-    - job: rollback
+  dependencies:
+    - terraform_apply
   script:
     - |
       if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
@@ -558,15 +549,10 @@ notify_telegram_success:
         --data-urlencode "disable_web_page_preview=true"
   rules: *deploy_env_rules
 
-notify_telegram_failure:
-  stage: deploy
+notify_tg_failure:
+  stage: notify
   image: curlimages/curl:latest
   allow_failure: true
-  needs:
-    - job: ansible_deploy
-    - job: rollback
-    - job: terraform_apply
-      artifacts: true
   script:
     - |
       if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
@@ -630,4 +616,4 @@ notify_telegram_failure:
         --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
         --data-urlencode "text=${MESSAGE}" \
         --data-urlencode "disable_web_page_preview=true"
-  rules: *always_on_failure_rules
+  rules: *deploy_env_failure_rules
