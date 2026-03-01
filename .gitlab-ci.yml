@@ -232,6 +232,18 @@ publish_latest:
 
 ################################################################# BUILD -> INFRA #################################################################
 
+checkov:
+  stage: prepare
+  image:
+    name: bridgecrew/checkov:latest
+    entrypoint: [""]
+  script:
+    - cd infra
+    - checkov -d . --framework terraform --download-external-modules true
+  allow_failure: true
+  rules: *deploy_env_rules
+
+
 # Create infra with terraform apply and prepare inventory from outputs
 terraform_apply:
   stage: prepare
@@ -240,6 +252,7 @@ terraform_apply:
     entrypoint: [""]
   needs:
     - job: build_image
+    - job: checkov
   variables:
     TF_VAR_cloud_id: "$CLOUD_ID"
     TF_VAR_folder_id: "$FOLDER_ID"
