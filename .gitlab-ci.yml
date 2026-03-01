@@ -1,5 +1,6 @@
 stages:
   - test
+  - security
   - build
   - infra
   - deploy
@@ -79,6 +80,53 @@ run_pytest:
     - uv sync --locked
   script:
     - uv run pytest
+################################################################# TEST -> SECURITY #################################################################
+
+
+# Check repo files for leaks of secrets
+secret_scan:
+  stage: security
+  image: zricethezav/gitleaks:latest
+  needs:
+    - job: run_linters
+    - job: run_pytest
+  script:
+    - gitleaks detect --source . --no-git --redact
+
+# Dependancy scan
+dependency_scan:
+  stage: security
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm
+  variables:
+    UV_CACHE_DIR: $CI_PROJECT_DIR/.cache/uv
+  cache:
+    key:
+      files:
+        - uv.lock
+    paths:
+      - .cache/uv
+  needs:
+    - job: run_linters
+    - job: run_pytest
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends gcc
+    - uv sync --locked
+  script:
+    - uv pip install pip-audit
+    - uv run pip-audit
+
+# Static application security testing (unsafe code contructions, possible sql injections, xss, unsifa file handling and unsafe django settings)
+sast_semgrep:
+  stage: security
+  image: returntocorp/semgrep:latest
+  needs:
+    - job: run_linters
+    - job: run_pytest
+  script:
+    - semgrep --config p/ci --error
+
+################################################################# SECURITY -> BUILD #################################################################
+
 
 # Build with kaniko
 build_image:
@@ -89,6 +137,9 @@ build_image:
   needs:
     - job: run_linters
     - job: run_pytest
+    - job: secret_scan
+    - job: dependency_scan
+    - job: sast_semgrep
   script:
     - mkdir -p /kaniko/.docker
     - |
@@ -137,6 +188,9 @@ publish_latest:
     paths:
       - previous.env
   rules: *deploy_env_rules
+
+
+################################################################# BUILD -> INFRA #################################################################
 
 # Create infra with terraform apply and prepare inventory from outputs
 terraform_apply:
@@ -340,6 +394,8 @@ terraform_destroy:
     name: $DEPLOY_ENV
   rules: *deploy_env_manual_rules
 
+################################################################# INFRA -> DEPLOY #################################################################
+
 # Deploy app, database and monitoring via Ansible
 ansible_deploy:
   stage: deploy
@@ -513,6 +569,8 @@ rollback:
   environment:
     name: $DEPLOY_ENV
   rules: *deploy_env_failure_rules
+
+################################################################# DEPLOY -> NOTIFY #################################################################
 
 # Notify in Telegram after pipeline completion
 notify_telegram_success:

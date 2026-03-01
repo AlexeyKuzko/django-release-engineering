@@ -1,0 +1,4 @@
+/.gitlab-ci.yml            @AlexeyKuzko @Vulkii
+/infra/*               @AlexeyKuzko @Vulkii
+/ansible/*                 @AlexeyKuzko @Vulkii
+/docker/*                  @AlexeyKuzko @Vulkii
