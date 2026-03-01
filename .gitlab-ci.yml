@@ -99,6 +99,8 @@ secret_scan:
       allow_failure: false
     - if: '$CI_COMMIT_BRANCH == "develop"'
       allow_failure: true
+    - if: '$CI_COMMIT_BRANCH == "devmat"'
+      allow_failure: true
     - when: never
 
 # Dependancy scan
@@ -145,6 +147,8 @@ dependency_scan:
       allow_failure: false
     - if: '$CI_COMMIT_BRANCH == "develop"'
       allow_failure: false
+    - if: '$CI_COMMIT_BRANCH == "devmat"'
+      allow_failure: true
     - when: never
 
 # Static application security testing (unsafe code contructions, possible sql injections, xss, unsifa file handling and unsafe django settings)
@@ -160,6 +164,8 @@ sast_semgrep:
   - if: '$CI_COMMIT_BRANCH == "release"'
     allow_failure: false
   - if: '$CI_COMMIT_BRANCH == "develop"'
+    allow_failure: true
+  - if: '$CI_COMMIT_BRANCH == "devmat"'
     allow_failure: true
   - when: never
 
