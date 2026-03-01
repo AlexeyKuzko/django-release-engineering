@@ -1,9 +1,8 @@
 stages:
-  - test
+  - verify
   - build
-  - infra
+  - prepare
   - deploy
-  - notify
 
 variables:
   IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
@@ -47,7 +46,7 @@ variables:
 
 # Run linters: pre-commit-hooks, django-upgrade, ruff, djLint
 run_linters:
-  stage: test
+  stage: verify
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
   variables:
     UV_CACHE_DIR: $CI_PROJECT_DIR/.cache/uv
@@ -68,7 +67,7 @@ run_linters:
 
 # Run pytest
 run_pytest:
-  stage: test
+  stage: verify
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
   services:
     - postgres:15
@@ -140,7 +139,7 @@ publish_latest:
 
 # Create infra with terraform apply and prepare inventory from outputs
 terraform_apply:
-  stage: infra
+  stage: prepare
   image:
     name: hashicorp/terraform:1.6
     entrypoint: [""]
@@ -261,7 +260,7 @@ terraform_apply:
 
 # Manually destroy terraform resources when needed
 terraform_destroy:
-  stage: infra
+  stage: prepare
   image:
     name: hashicorp/terraform:1.6
     entrypoint: [""]
@@ -518,7 +517,7 @@ rollback:
 
 # Notify in Telegram after pipeline completion
 notify_telegram_success:
-  stage: notify
+  stage: deploy
   image: curlimages/curl:latest
   allow_failure: true
   dependencies:
@@ -550,7 +549,7 @@ notify_telegram_success:
   rules: *deploy_env_rules
 
 notify_telegram_failure:
-  stage: notify
+  stage: deploy
   image: curlimages/curl:latest
   allow_failure: true
   script:

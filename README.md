@@ -53,7 +53,7 @@ CI/CD pipeline обеспечивает:
 
 ```mermaid
 flowchart LR
-    subgraph Stage_Test ["test"]
+    subgraph Stage_Verify ["verify"]
         A1[run_linters]
         A2[run_pytest]
     end
@@ -63,7 +63,7 @@ flowchart LR
         B2[publish_latest]
     end
 
-    subgraph Stage_Infra ["infra"]
+    subgraph Stage_Prepare ["prepare"]
         C1[terraform_apply]
         C2[terraform_destroy]
     end
@@ -72,11 +72,7 @@ flowchart LR
         D1[ansible_deploy]
         D2[health_check]
         D3[rollback]
-    end
-
-    subgraph Stage_Notify ["notify"]
-        E1[notify_telegram_success]
-        E2[notify_telegram_failure]
+        D4[notify]
     end
 
     A1 --> B1
@@ -87,13 +83,12 @@ flowchart LR
     C1 -. manual .-> C2
     C1 --> D1
     D1 --> D2
-    D2 -->|success| E1
+    D2 -->|success| D4
     D2 -->|failure| D3
-    D3 --> E2
+    D3 --> D4
 
     style D3 fill:green
-    style E1 fill:green
-    style E2 fill:orange
+    style D4 fill:green
 ```
 
 > **Для наглядности диаграмма упрощена**:
@@ -105,18 +100,19 @@ flowchart LR
 
 ### Этапы пайплайна
 
-| Stage | Job | Описание |
-|---|---|---|
-| `test` | `run_linters` | pre-commit hooks (ruff, djLint, django-upgrade) |
-| `test` | `run_pytest` | pytest с PostgreSQL service |
-| `build` | `build_image` | Kaniko: сборка и push с тегом `$CI_COMMIT_SHA` |
-| `build` | `publish_latest` | Тегирование `latest-dev`/`latest-prod` и `previous-dev`/`previous-prod` |
-| `infra` | `terraform_apply` | Создание инфраструктуры в Yandex Cloud |
-| `infra` | `terraform_destroy` | Ручное удаление инфраструктуры |
-| `deploy` | `ansible_deploy` | Деплой через Ansible + Docker Compose |
-| `deploy` | `health_check` | Проверка HTTPS `/health` и `/` |
-| `deploy` | `rollback` | Откат к `previous-<env>` при провале health_check |
-| `notify` | `notify_telegram_*` | Уведомления в Telegram |
+| Stage | Job                       | Описание                                                                     |
+|---|---------------------------|------------------------------------------------------------------------------|
+| `verify` | `run_linters`             | pre-commit hooks (ruff, djLint, django-upgrade)                              |
+| `verify` | `run_pytest`              | pytest с PostgreSQL service                                                  |
+| `build` | `build_image`             | Kaniko: сборка и push с тегом `$CI_COMMIT_SHA`                               |
+| `build` | `publish_latest`          | Тегирование `latest-dev`/`latest-prod` и `previous-dev`/`previous-prod`      |
+| `prepare` | `terraform_apply`         | Создание инфраструктуры в Yandex Cloud                                       |
+| `prepare` | `terraform_destroy`       | Ручное удаление инфраструктуры                                               |
+| `deploy` | `ansible_deploy`          | Деплой через Ansible + Docker Compose                                        |
+| `deploy` | `health_check`            | Проверка HTTPS `/health` и `/`                                               |
+| `deploy` | `rollback`                | Откат к `previous-<env>` при провале health_check                            |
+| `deploy` | `notify_telegram_success` | Уведомления в Telegram об успехе деплоя                                      |
+| `deploy` | `notify_telegram_failure` | Уведомления в Telegram об ошибке пайплайна с указанием конкретной failed job |
 
 **Правила запуска:**
 - Ветки `main` → окружение `prod`, `dev`/`develop` → окружение `dev`
@@ -129,7 +125,7 @@ flowchart LR
 
 ### Полностью реализовано ✅
 
-- **CI Pipeline:** test → build → (publish \|\| terraform) → deploy → health_check → rollback/notify
+- **CI Pipeline:** verify → build → (publish || prepare) → deploy → notify
 - **Terraform IaC:** VPC, subnets (public/private), NAT Gateway, security groups, VM (app/db/monitoring), опциональная DNS-зона
 - **Ansible деплой:** idempotent-роли для app, db, monitoring; авто-определение docker-compose команды
 - **Image Tagging:** commit SHA + `latest-dev/latest-prod` + `previous-dev/previous-prod` (для rollback)
@@ -212,10 +208,10 @@ Production-переменные: `DJANGO_SECRET_KEY`, `DJANGO_ADMIN_URL`, `DJANG
                     │   GitLab CI   │
                     │   Pipeline    │
                     │               │
-                    │ test→         │
+                    │ verify→       │
                     │ build→(publish│
-                    │ ||terraform)→ │
-                    │ deploy→check  │
+                    │ ||prepare)→   │
+                    │ deploy→notify │
                     └───────────────┘
 ```
 
