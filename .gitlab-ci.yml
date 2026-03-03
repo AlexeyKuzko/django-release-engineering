@@ -661,12 +661,18 @@ DAST_zap:
   script:
     - |
       set -e
+      if [ -z "${APP_DOMAIN:-}" ]; then
+        echo "APP_DOMAIN is empty"
+        exit 1
+      fi
+
       TARGET="https://${APP_DOMAIN}"
       echo "Running ZAP baseline scan for ${TARGET}"
 
       zap-baseline.py \
         -t "${TARGET}" \
         -I \
+        --autooff \
         -z "-config connection.sslInsecure=true" | tee zap_output.txt
   artifacts:
     when: always
