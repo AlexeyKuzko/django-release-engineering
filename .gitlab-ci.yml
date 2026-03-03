@@ -647,6 +647,48 @@ rollback:
     name: $DEPLOY_ENV
   rules: *deploy_env_failure_rules
 
+
+
+
+
+DAST_zap:
+  stage: deploy
+  image: ghcr.io/zaproxy/zaproxy:stable
+  needs:
+    - job: terraform_apply
+      artifacts: true
+    - job: health_check
+  script:
+    - |
+      if [ -z "${APP_DOMAIN:-}" ]; then
+        echo "APP_DOMAIN is empty"
+        exit 1
+      fi
+
+      TARGET="https://${APP_DOMAIN}"
+      echo "Running ZAP baseline scan for ${TARGET}"
+
+      zap-baseline.py \
+        -t "${TARGET}" \
+        -r zap_report.html \
+        -J zap_report.json \
+        -I
+
+  artifacts:
+    when: always
+    paths:
+      - zap_report.html
+      - zap_report.json
+
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "release"'
+      allow_failure: false
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+      allow_failure: true
+    - if: '$CI_COMMIT_BRANCH == "devmat"'
+      allow_failure: true
+    - when: never
+
 ################################################################# DEPLOY -> NOTIFY #################################################################
 
 # Notify in Telegram after pipeline completion
