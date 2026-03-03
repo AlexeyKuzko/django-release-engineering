@@ -672,7 +672,8 @@ DAST_zap:
         -t "${TARGET}" \
         -r zap_report.html \
         -J zap_report.json \
-        -I
+        -I \
+        -z "-config connection.sslInsecure=true"
 
   artifacts:
     when: always
