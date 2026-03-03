@@ -658,8 +658,11 @@ DAST_zap:
     - job: terraform_apply
       artifacts: true
     - job: health_check
+  variables:
+    ZAP_WRK_DIR: "/tmp"
   script:
     - |
+      set -e
       if [ -z "${APP_DOMAIN:-}" ]; then
         echo "APP_DOMAIN is empty"
         exit 1
@@ -670,17 +673,15 @@ DAST_zap:
 
       zap-baseline.py \
         -t "${TARGET}" \
-        -r zap_report.html \
-        -J zap_report.json \
+        -r "${CI_PROJECT_DIR}/zap_report.html" \
+        -J "${CI_PROJECT_DIR}/zap_report.json" \
         -I \
         -z "-config connection.sslInsecure=true"
-
   artifacts:
     when: always
     paths:
       - zap_report.html
       - zap_report.json
-
   rules:
     - if: '$CI_COMMIT_BRANCH == "release"'
       allow_failure: false
