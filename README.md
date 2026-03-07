@@ -65,49 +65,76 @@ uv run python manage.py runserver
 
 ## Архитектура инфраструктуры
 В качестве инфраструктурного слоя использован Yandex Cloud.
-### Верхнеуровневая схема инфраструктуры развернутого проекта
+### Верхнеуровневая схема инфраструктуры
 Все ресурсы организации _organization-yndx-kuzkoalexey_ размещены в облаке _cloud-yndx-kuzkoalexey_.
 <details>
-<summary>Реализованные ресурсы: Managed Service for Gitlab, Cloud DNS, IAM, Compute Cloud, Object Storage, Virtual Private Cloud</summary>
+<summary>Задействованные ресурсы: Managed Service for Gitlab, Cloud DNS, IAM, Compute Cloud, Object Storage, Virtual Private Cloud</summary>
 
 ```mermaid
 flowchart TB
 subgraph YC["Yandex Cloud"]
-subgraph GITLAB["Managed Service for GitLab"]
-G1["GitLab CI/CD Instance"]
-G2["GitLab Container Registry"]
-G3["Gitlab Runners"]
-G1 --> G2
+  subgraph GITLAB["Managed Service for GitLab"]
+    G1["GitLab CI/CD Instance"]
+    G2["GitLab Container Registry"]
+    G1 --> G2
+  end
+
+  subgraph IAM["IAM"]
+    I1["Service Account Key"]
+    I2["Static Access Keys"]
+  end
+
+  subgraph OBJ["Object Storage"]
+    O1["Bucket: diploma-terraform-state"]
+    O2["Object: dev/terraform.tfstate"]
+    O3["Object: prod/terraform.tfstate"]
+    O1 --- O2
+    O1 --- O3
+  end
+
+  subgraph VPC["Virtual Private Cloud"]
+    V1["VPC Network: diploma-&lt;env&gt;-network"]
+    V2["Public Subnet"]
+    V3["Private Subnet"]
+    V4["NAT Gateway"]
+    V5["Private Route Table<br/>(0.0.0.0/0 -&gt; NAT)"]
+    V6["Static Public IP<br/>(App VM)"]
+    V7["Security Groups<br/>(app, db, monitoring)"]
+
+    V1 --- V2
+    V1 --- V3
+    V3 --- V5
+    V5 --- V4
+    V2 --- V6
+    V1 --- V7
+  end
+
+  subgraph CC["Compute Cloud"]
+    C1["App VM<br/>(Django + Caddy)"]
+    C2["DB VM<br/>(PostgreSQL)"]
+    C3["Monitoring VM<br/>(Grafana + Prometheus)"]
+    С4["GitLab Runners"]
+  end
+
+  subgraph DNS["Cloud DNS"]
+    D1["Public DNS Zone<br/>(manage_dns=true)"]
+    D2["A Record<br/>app_domain -&gt; app public IP"]
+    D1 --> D2
+  end
 end
 
-subgraph VPC["VPC Network (<env>)"]
+G1 -->|Terraform apply/destroy: network, subnets, route, NAT, SG, IP| VPC
+G1 -->|Terraform apply/destroy: app/db/monitoring VM| CC
+G1 -->|Terraform apply/destroy| DNS
+G1 -->|Terraform state backend| O1
+G1 -->|Use IAM creds| I1
+G1 -->|Use storage access keys| I2
+G1 -->|Ansible deploy + health check| CC
+G1 --> С4
 
-subgraph PUBLIC["Public Subnet"]
-APP["App VM<br/>(Django + Caddy)<br/>:443 :80"]
-MON["Monitoring VM<br/>(Grafana + Prometheus)<br/>:3000 :9090"]
-end
-
-subgraph PRIVATE["Private Subnet"]
-DB["DB VM<br/>(PostgreSQL)<br/>:5432"]
-end
-
-end
-
-SG["Security Groups<br/>(app_sg, db_sg, mon_sg)"]
-
-APP --- SG
-DB --- SG
-MON --- SG
-
-NAT["NAT Gateway"]
-
-VPC --- NAT
-
-G1 -->|Terraform apply/destroy| VPC
-G1 -->|Ansible deploy + health check| APP
-APP -->|image pull| G2
-
-end
+C1 -->|image pull| G2
+CC -->|NICs in public/private subnets| VPC
+D2 -->|resolves to app public IP| C1
 ```
 </details>
 
