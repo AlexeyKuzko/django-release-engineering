@@ -1,7 +1,10 @@
 stages:
   - verify
+  - security
   - build
-  - prepare
+  - test
+  - publish
+  - prepare_for_deploy
   - deploy
   - notify
 
@@ -25,6 +28,17 @@ variables:
   - if: '$CI_COMMIT_BRANCH == "main"'
     when: manual
     allow_failure: true
+    variables:
+      DEPLOY_ENV: "prod"
+  - if: '$CI_COMMIT_BRANCH =~ /^(dev|develop)$/'
+    when: manual
+    allow_failure: true
+    variables:
+      DEPLOY_ENV: "dev"
+  - when: never
+
+.deploy_env_apply_rules: &deploy_env_apply_rules
+  - if: '$CI_COMMIT_BRANCH == "main"'
     variables:
       DEPLOY_ENV: "prod"
   - if: '$CI_COMMIT_BRANCH =~ /^(dev|develop)$/'
@@ -67,7 +81,7 @@ run_linters:
     - uv tool run pre-commit==4.5.1 run --show-diff-on-failure --color=always --all-files
 
 # Run pytest
-run_pytest:
+run_pytest_verify:
   stage: verify
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
   services:
@@ -79,6 +93,71 @@ run_pytest:
     - uv sync --locked
   script:
     - uv run pytest
+################################################################# TEST -> SECURITY #################################################################
+
+# Check repo files for leaks of secrets
+secret_scan:
+  stage: security
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
+  needs:
+    - job: run_linters
+    - job: run_pytest_verify
+  script:
+    - gitleaks detect --source . --no-git --redact
+
+# Dependancy scan
+dependency_scan:
+  stage: security
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm
+  needs:
+    - job: run_linters
+    - job: run_pytest_verify
+  before_script:
+    - uv sync --locked
+    - uv pip install pip-audit
+  script:
+    - |
+      echo "Running pip-audit for branch: $CI_COMMIT_BRANCH"
+
+      if [ "$CI_COMMIT_BRANCH" = "release" ]; then
+        echo "Strict mode: fail on any vulnerability"
+        uv run pip-audit
+        exit $?
+      fi
+
+      if [ "$CI_COMMIT_BRANCH" = "develop" ]; then
+        echo "Develop mode: fail only on CRITICAL vulnerabilities"
+        uv run pip-audit -f json > audit.json || true
+
+        if grep -qi '"severity": *"critical"' audit.json; then
+          echo "Critical vulnerabilities found. Failing."
+          exit 1
+        else
+          echo "No critical vulnerabilities found. Continuing."
+          exit 0
+        fi
+      else uv run pip-audit -f json > audit.json || true
+      fi
+      exit 0
+  artifacts:
+    when: always
+    paths:
+      - audit.json
+
+# Static application security testing (unsafe code contructions, possible sql injections, xss, unsifa file handling and unsafe django settings)
+sast_semgrep:
+  stage: security
+  image: returntocorp/semgrep:latest
+  needs:
+    - job: run_linters
+    - job: run_pytest_verify
+  script:
+    - semgrep --config p/ci --error .
+
+################################################################# SECURITY -> BUILD #################################################################
+
 
 # Build with kaniko
 build_image:
@@ -87,8 +166,9 @@ build_image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   needs:
-    - job: run_linters
-    - job: run_pytest
+    - job: secret_scan
+    - job: dependency_scan
+    - job: sast_semgrep
   script:
     - mkdir -p /kaniko/.docker
     - |
@@ -109,14 +189,90 @@ build_image:
       --destination "$IMAGE_TAG"
       --cache=true
 
+# Smoke test of the built image by running real containers
+trivy_scan:
+  stage: test
+  allow_failure: true # temporary for debug only!!
+  image:
+    name: aquasec/trivy:0.50.2
+    entrypoint: [""]
+  needs:
+    - job: build_image
+  variables:
+    TRIVY_USERNAME: "$CI_REGISTRY_USER"
+    TRIVY_PASSWORD: "$CI_REGISTRY_PASSWORD"
+  script:
+    - trivy image --no-progress --severity HIGH,CRITICAL --exit-code 1 "$IMAGE_TAG"
+
+run_pytest_on_build:
+  stage: test
+  image: docker:27.5.1-cli
+  services:
+    - name: docker:27.5.1-dind
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  needs:
+    - job: build_image
+  before_script:
+    - apk add --no-cache python3 py3-pytest
+  script:
+    - set -eu
+    - docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
+    - docker pull "$IMAGE_TAG"
+    - docker network create smoke-net
+    - >
+      docker run -d --name postgres-smoke --network smoke-net
+      -e POSTGRES_USER="$POSTGRES_USER"
+      -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
+      -e POSTGRES_DB="$POSTGRES_DB"
+      -e POSTGRES_HOST_AUTH_METHOD=trust
+      postgres:15
+    - |
+      for i in $(seq 1 30); do
+        if docker run --rm --network smoke-net \
+          -e PGPASSWORD="$POSTGRES_PASSWORD" \
+          postgres:15 \
+          pg_isready -h postgres-smoke -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; then
+          break
+        fi
+        if [ "$i" -eq 30 ]; then
+          echo "Postgres in smoke environment did not become ready in time."
+          exit 1
+        fi
+        sleep 2
+      done
+    - >
+      docker run -d --name app-smoke --network smoke-net
+      -p 18080:8000
+      -e DATABASE_URL="postgres://${POSTGRES_USER}@postgres-smoke:5432/${POSTGRES_DB}"
+      -e DJANGO_SECRET_KEY="ci-smoke-secret-key"
+      -e DJANGO_ADMIN_URL="admin/"
+      -e DJANGO_ALLOWED_HOSTS="app-smoke,localhost,127.0.0.1,docker"
+      -e DJANGO_SECURE_SSL_REDIRECT="False"
+      "$IMAGE_TAG"
+    - APP_BASE_URL="http://docker:18080" pytest -q -c /dev/null tests/smoke/container_image_smoke.py
+  after_script:
+    - docker logs app-smoke > app-smoke.log 2>&1 || true
+    - docker logs postgres-smoke > postgres-smoke.log 2>&1 || true
+    - docker rm -f app-smoke postgres-smoke >/dev/null 2>&1 || true
+    - docker network rm smoke-net >/dev/null 2>&1 || true
+  artifacts:
+    when: always
+    paths:
+      - app-smoke.log
+      - postgres-smoke.log
+
 # Publish to GitLab Container Registry
 publish_latest:
-  stage: build
+  stage: publish
   image:
     name: gcr.io/go-containerregistry/crane:debug
     entrypoint: [""]
   needs:
-    - job: build_image
+    - job: trivy_scan
+    - job: run_pytest_on_build
   script:
     - crane auth login $CI_REGISTRY -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
     - "printf '' > previous.env"
@@ -138,14 +294,30 @@ publish_latest:
       - previous.env
   rules: *deploy_env_rules
 
+
+################################################################# BUILD -> INFRA #################################################################
+
+checkov:
+  stage: prepare_for_deploy
+  image:
+    name: bridgecrew/checkov:latest
+    entrypoint: [""]
+  script:
+    - cd infra
+    - checkov -d . --framework terraform --download-external-modules true
+  allow_failure: true
+  rules: *deploy_env_rules
+
+
 # Create infra with terraform apply and prepare inventory from outputs
 terraform_apply:
-  stage: prepare
+  stage: prepare_for_deploy
   image:
     name: hashicorp/terraform:1.6
     entrypoint: [""]
   needs:
-    - job: build_image
+    - job: publish_latest
+    - job: checkov
   variables:
     TF_VAR_cloud_id: "$CLOUD_ID"
     TF_VAR_folder_id: "$FOLDER_ID"
@@ -256,17 +428,15 @@ terraform_apply:
       - deploy.env
   environment:
     name: $DEPLOY_ENV
-  rules: *deploy_env_rules
+  rules: *deploy_env_apply_rules
 
 
 # Manually destroy terraform resources when needed
 terraform_destroy:
-  stage: prepare
+  stage: prepare_for_deploy
   image:
     name: hashicorp/terraform:1.6
     entrypoint: [""]
-  needs:
-    - job: terraform_apply
   variables:
     TF_VAR_cloud_id: "$CLOUD_ID"
     TF_VAR_folder_id: "$FOLDER_ID"
@@ -339,6 +509,8 @@ terraform_destroy:
   environment:
     name: $DEPLOY_ENV
   rules: *deploy_env_manual_rules
+
+################################################################# INFRA -> DEPLOY #################################################################
 
 # Deploy app, database and monitoring via Ansible
 ansible_deploy:
@@ -516,13 +688,48 @@ rollback:
     name: $DEPLOY_ENV
   rules: *deploy_env_failure_rules
 
+
+
+
+
+DAST_zap:
+  stage: deploy
+  image: ghcr.io/zaproxy/zaproxy:stable
+  needs:
+    - job: terraform_apply
+      artifacts: true
+    - job: health_check
+  script:
+    - |
+      set -e
+      if [ -z "${APP_DOMAIN:-}" ]; then
+        echo "APP_DOMAIN is empty"
+        exit 1
+      fi
+
+      TARGET="https://${APP_DOMAIN}"
+      echo "Running ZAP baseline scan for ${TARGET}"
+
+      zap-baseline.py \
+        -t "${TARGET}" \
+        -I \
+        --autooff \
+        -z "-config connection.sslInsecure=true" | tee zap_output.txt
+  artifacts:
+    when: always
+    paths:
+      - zap_output.txt
+  rules: *deploy_env_rules
+
+################################################################# DEPLOY -> NOTIFY #################################################################
+
 # Notify in Telegram after pipeline completion
 notify_tg_success:
   stage: notify
   image: curlimages/curl:latest
   allow_failure: true
-  dependencies:
-    - terraform_apply
+  needs:
+    - job: health_check
   script:
     - |
       if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
@@ -535,7 +742,7 @@ notify_tg_success:
         MONITORING_ENDPOINT="http://${MONITORING_PUBLIC_IP}:3000"
       fi
       MESSAGE="$(printf '%s\n' \
-        '[DEPLOY][SUCCESS]' \
+        '[PIPELINE][SUCCESS]' \
         "env: ${DEPLOY_ENV}" \
         "project: ${CI_PROJECT_PATH}" \
         "branch: ${CI_COMMIT_REF_NAME}" \
@@ -603,7 +810,7 @@ notify_tg_failure:
       fi
     - |
       MESSAGE="$(printf '%s\n' \
-        '[DEPLOY][FAILED]' \
+        '[PIPELINE][FAILED]' \
         "env: ${DEPLOY_ENV}" \
         "project: ${CI_PROJECT_PATH}" \
         "branch: ${CI_COMMIT_REF_NAME}" \
