@@ -25,6 +25,15 @@
 - **Оценивание** — выставление оценок преподавателем, отслеживание средней оценки студента
 - **Статистика** — аналитика по курсам (количество студентов, проектов, средняя оценка)
 - **Аутентификация** — регистрация и вход через социальные сети (django-allauth)
+
+### Локальный запуск
+```bash
+uv venv
+uv sync --locked
+export DATABASE_URL=postgres://<user>:<pass>@<host>:5432/<db>
+uv run python manage.py migrate
+uv run python manage.py runserver
+```
 </details>
 
 ## О пайплайне
@@ -78,7 +87,7 @@ flowchart LR
     end
 
     subgraph Stage_Test ["test"]
-        T1[pytest_regress_tests]
+        T1[image_smoke_test]
     end
 
     subgraph Stage_Publish ["publish"]
@@ -129,6 +138,7 @@ flowchart LR
 > **Для наглядности диаграмма упрощена**:
 > - `build_image` (Kaniko) собирает образ и сразу пушит immutable-тег `$CI_COMMIT_SHA`
 > - `publish_latest` не пересобирает образ, а только проставляет теги `latest-<env>` и `previous-<env>`
+> - `image_smoke_test` проверяет именно собранный образ: поднимает `postgres` + app-контейнер и запускает `pytest` smoke (`tests/smoke/container_image_smoke.py`)
 > - `terraform_apply` для `main` запускается автоматически, для `dev/develop` — вручную
 > - после успешного `terraform_apply` jobs этапа `deploy` стартуют автоматически по `needs`
 > - `terraform_destroy` запускается вручную
@@ -138,26 +148,26 @@ flowchart LR
 
 ### Этапы пайплайна
 
-| Stage | Job                       | Описание                                                              |
-|---|---------------------------|-----------------------------------------------------------------------|
-| `verify` | `run_linters`             | pre-commit hooks (ruff, djLint, django-upgrade)                       |
-| `verify` | `run_pytest`              | pytest с PostgreSQL service                                           |
-| `security` | `secret_scan`             | Поиск секретов в репозитории (`gitleaks`)                             |
-| `security` | `dependency_scan`         | Аудит Python-зависимостей (`pip-audit`)                               |
-| `security` | `sast_semgrep`            | SAST-проверка исходного кода (`semgrep`)                              |
-| `build` | `build_image`             | Kaniko: сборка и push immutable-образа с тегом `$CI_COMMIT_SHA`       |
-| `build` | `trivy_scan`              | Сканирование собранного образа (`HIGH`, `CRITICAL`)                   |
-| `test` | `pytest_regress_tests` | Минимальная регрессия: `tests/test_home_page.py`, `tests/test_health_endpoint.py` |
-| `publish` | `publish_latest`          | Ретегирование уже собранного образа в `latest-<env>` и `previous-<env>` |
-| `prepare_for_deploy` | `checkov`                 | Статический анализ Terraform-конфигурации                             |
-| `prepare_for_deploy` | `terraform_apply`         | `terraform apply` + подготовка inventory (auto в `main`, manual в `dev/develop`) |
-| `prepare_for_deploy` | `terraform_destroy`       | Ручной `terraform destroy`                                             |
-| `deploy` | `ansible_deploy`          | Деплой через Ansible + Docker Compose                                 |
-| `deploy` | `health_check`            | Проверка HTTPS `/health` и `/`                                        |
-| `deploy` | `rollback`                | Откат к `previous-<env>` при провале health_check                     |
-| `deploy` | `DAST_zap`                | DAST baseline-скан после успешного health-check                       |
-| `notify` | `notify_tg_success` | Уведомляет в Telegram об успешном завершении пайплайна                 |
-| `notify` | `notify_tg_failure` | Уведомляет в Telegram о провале с указанием конкретной job             |
+| Stage | Job                       | Описание                                                                                |
+|---|---------------------------|-----------------------------------------------------------------------------------------|
+| `verify` | `run_linters`             | pre-commit hooks (ruff, djLint, django-upgrade)                                         |
+| `verify` | `run_pytest`              | набор базовых проверок с pytest в CI-окружении (с PostgreSQL service)                   |
+| `security` | `secret_scan`             | Поиск секретов в репозитории (`gitleaks`)                                               |
+| `security` | `dependency_scan`         | Аудит Python-зависимостей (`pip-audit`)                                                 |
+| `security` | `sast_semgrep`            | SAST-проверка исходного кода (`semgrep`)                                                |
+| `build` | `build_image`             | Kaniko: сборка и push immutable-образа с тегом `$CI_COMMIT_SHA`                         |
+| `build` | `trivy_scan`              | Сканирование собранного образа (`HIGH`, `CRITICAL`)                                     |
+| `test` | `image_smoke_test` | Smoke-тест собранного образа: запуск `postgres` + app-контейнера и запуск pytest-тестов |
+| `publish` | `publish_latest`          | Ретегирование уже собранного образа в `latest-<env>` и `previous-<env>`                 |
+| `prepare_for_deploy` | `checkov`                 | Статический анализ Terraform-конфигурации                                               |
+| `prepare_for_deploy` | `terraform_apply`         | `terraform apply` + подготовка inventory (auto в `main`, manual в `dev/develop`)        |
+| `prepare_for_deploy` | `terraform_destroy`       | Ручной `terraform destroy`                                                              |
+| `deploy` | `ansible_deploy`          | Деплой через Ansible + Docker Compose                                                   |
+| `deploy` | `health_check`            | Проверка HTTPS `/health` и `/`                                                          |
+| `deploy` | `rollback`                | Откат к `previous-<env>` при провале health_check                                       |
+| `deploy` | `DAST_zap`                | DAST baseline-скан после успешного health-check                                         |
+| `notify` | `notify_tg_success` | Уведомляет в Telegram об успешном завершении пайплайна                                  |
+| `notify` | `notify_tg_failure` | Уведомляет в Telegram о провале с указанием конкретной job                              |
 
 **Правила запуска:**
 - Автоматически на push запускаются `verify` → `security` → `build` → `test`
@@ -188,6 +198,7 @@ flowchart LR
 - **Terraform IaC:** VPC, subnets (public/private), NAT Gateway, security groups, VM (app/db/monitoring), опциональная DNS-зона
 - **Ansible деплой:** idempotent-роли для app, db, monitoring; авто-определение docker-compose команды
 - **Image Tagging:** commit SHA + `latest-dev/latest-prod` + `previous-dev/previous-prod` (для rollback)
+- **Post-build smoke test:** запуск собранного Docker-образа вместе с PostgreSQL и `pytest`-проверка доступности `/health` и `/`
 - **Health-check:** HTTPS проверка `/health` и главной страницы с fallback на IP
 - **Rollback:** автоматический откат к `previous-<env>` при провале health_check
 - **Terraform destroy:** ручное удаление инфраструктуры
@@ -202,25 +213,19 @@ flowchart LR
 
 ## Тестирование
 
-**9 тест-файлов:**
+**10 тест-файлов:**
 - `django_educational_demo_application/users/tests/` (5 файлов: admin, forms, models, urls, views)
 - `tests/test_health_endpoint.py`
 - `tests/test_home_page.py`
 - `tests/test_merge_production_dotenvs_in_dotenv.py`
+- `tests/smoke/container_image_smoke.py`
 
 **Особенности:**
 - Тесты используют PostgreSQL (не совместимы с SQLite из-за sequence в миграциях `contrib/sites`)
 - CI запускает pytest с PostgreSQL service
+- Пост-сборочный smoke stage запускает отдельный `pytest` против собранного Docker-образа
 
-## Локальный запуск
 
-```bash
-uv venv
-uv sync --locked
-export DATABASE_URL=postgres://<user>:<pass>@<host>:5432/<db>
-uv run python manage.py migrate
-uv run python manage.py runserver
-```
 
 Production-переменные: `DJANGO_SECRET_KEY`, `DJANGO_ADMIN_URL`, `DJANGO_ALLOWED_HOSTS` и др.
 
