@@ -81,7 +81,7 @@ run_linters:
     - uv tool run pre-commit==4.5.1 run --show-diff-on-failure --color=always --all-files
 
 # Run pytest
-run_pytest:
+run_pytest_verify:
   stage: verify
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
   services:
@@ -95,7 +95,6 @@ run_pytest:
     - uv run pytest
 ################################################################# TEST -> SECURITY #################################################################
 
-
 # Check repo files for leaks of secrets
 secret_scan:
   stage: security
@@ -104,7 +103,7 @@ secret_scan:
     entrypoint: [""]
   needs:
     - job: run_linters
-    - job: run_pytest
+    - job: run_pytest_verify
   script:
     - gitleaks detect --source . --no-git --redact
 
@@ -114,7 +113,7 @@ dependency_scan:
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
   needs:
     - job: run_linters
-    - job: run_pytest
+    - job: run_pytest_verify
   before_script:
     - uv sync --locked
     - uv pip install pip-audit
@@ -153,7 +152,7 @@ sast_semgrep:
   image: returntocorp/semgrep:latest
   needs:
     - job: run_linters
-    - job: run_pytest
+    - job: run_pytest_verify
   script:
     - semgrep --config p/ci --error .
 
@@ -190,9 +189,9 @@ build_image:
       --destination "$IMAGE_TAG"
       --cache=true
 
-
+# Smoke test of the built image by running real containers
 trivy_scan:
-  stage: build
+  stage: test
   image:
     name: aquasec/trivy:0.50.2
     entrypoint: [""]
@@ -204,8 +203,7 @@ trivy_scan:
   script:
     - trivy image --no-progress --severity HIGH,CRITICAL --exit-code 1 "$IMAGE_TAG"
 
-# Smoke test of the built image by running real containers
-image_smoke_test:
+run_pytest_on_build:
   stage: test
   image: docker:27.5.1-cli
   services:
@@ -273,7 +271,7 @@ publish_latest:
     entrypoint: [""]
   needs:
     - job: trivy_scan
-    - job: image_smoke_test
+    - job: run_pytest_on_build
   script:
     - crane auth login $CI_REGISTRY -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
     - "printf '' > previous.env"

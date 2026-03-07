@@ -72,7 +72,7 @@ uv run python manage.py runserver
 flowchart LR
     subgraph Stage_Verify ["verify"]
         A1[run_linters]
-        A2[run_pytest]
+        A2[run_pytest_verify]
     end
 
     subgraph Stage_Security ["security"]
@@ -83,11 +83,11 @@ flowchart LR
 
     subgraph Stage_Build ["build"]
         B1[build_image]
-        B2[trivy_scan]
     end
 
     subgraph Stage_Test ["test"]
-        T1[image_smoke_test]
+        T1[trivy_scan]
+        T2[run_pytest_on_build]
     end
 
     subgraph Stage_Publish ["publish"]
@@ -116,10 +116,10 @@ flowchart LR
     S1 --> B1
     S2 --> B1
     S3 --> B1
-    B1 --> B2
     B1 --> T1
-    B2 --> P1
+    B1 --> T2
     T1 --> P1
+    T2 --> P1
     P1 --> C1
     C1 --> C2
     C2 -. optional .-> C3
@@ -138,7 +138,7 @@ flowchart LR
 > **Для наглядности диаграмма упрощена**:
 > - `build_image` (Kaniko) собирает образ и сразу пушит immutable-тег `$CI_COMMIT_SHA`
 > - `publish_latest` не пересобирает образ, а только проставляет теги `latest-<env>` и `previous-<env>`
-> - `image_smoke_test` проверяет именно собранный образ: поднимает `postgres` + app-контейнер и запускает `pytest` smoke (`tests/smoke/container_image_smoke.py`)
+> - `run_pytest_on_build` проверяет именно собранный образ: поднимает `postgres` + app-контейнер и запускает `pytest` smoke (`tests/smoke/container_image_smoke.py`)
 > - `terraform_apply` для `main` запускается автоматически, для `dev/develop` — вручную
 > - после успешного `terraform_apply` jobs этапа `deploy` стартуют автоматически по `needs`
 > - `terraform_destroy` запускается вручную
@@ -151,13 +151,13 @@ flowchart LR
 | Stage | Job                       | Описание                                                                                |
 |---|---------------------------|-----------------------------------------------------------------------------------------|
 | `verify` | `run_linters`             | pre-commit hooks (ruff, djLint, django-upgrade)                                         |
-| `verify` | `run_pytest`              | набор базовых проверок с pytest в CI-окружении (с PostgreSQL service)                   |
+| `verify` | `run_pytest_verify`              | набор базовых проверок с pytest в CI-окружении (с PostgreSQL service)                   |
 | `security` | `secret_scan`             | Поиск секретов в репозитории (`gitleaks`)                                               |
 | `security` | `dependency_scan`         | Аудит Python-зависимостей (`pip-audit`)                                                 |
 | `security` | `sast_semgrep`            | SAST-проверка исходного кода (`semgrep`)                                                |
 | `build` | `build_image`             | Kaniko: сборка и push immutable-образа с тегом `$CI_COMMIT_SHA`                         |
 | `build` | `trivy_scan`              | Сканирование собранного образа (`HIGH`, `CRITICAL`)                                     |
-| `test` | `image_smoke_test` | Smoke-тест собранного образа: запуск `postgres` + app-контейнера и запуск pytest-тестов |
+| `test` | `run_pytest_on_build` | Smoke-тест собранного образа: запуск `postgres` + app-контейнера и запуск pytest-тестов |
 | `publish` | `publish_latest`          | Ретегирование уже собранного образа в `latest-<env>` и `previous-<env>`                 |
 | `prepare_for_deploy` | `checkov`                 | Статический анализ Terraform-конфигурации                                               |
 | `prepare_for_deploy` | `terraform_apply`         | `terraform apply` + подготовка inventory (auto в `main`, manual в `dev/develop`)        |
