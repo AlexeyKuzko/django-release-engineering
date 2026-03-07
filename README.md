@@ -63,7 +63,7 @@ flowchart LR
         B2[publish_latest]
     end
 
-    subgraph Stage_Prepare ["prepare"]
+    subgraph Stage_Prepare ["prepare_for_deploy"]
         C1[terraform_apply]
         C2[terraform_destroy]
     end
@@ -111,8 +111,8 @@ flowchart LR
 | `verify` | `run_pytest`              | pytest с PostgreSQL service                                           |
 | `build` | `build_image`             | Kaniko: сборка и push с тегом `$CI_COMMIT_SHA`                        |
 | `build` | `publish_latest`          | Тегирование `latest-dev`/`latest-prod` и `previous-dev`/`previous-prod` |
-| `prepare` | `terraform_apply`         | Создание инфраструктуры в Yandex Cloud                                |
-| `prepare` | `terraform_destroy`       | Ручное удаление инфраструктуры                                        |
+| `prepare_for_deploy` | `terraform_apply`         | Создание инфраструктуры в Yandex Cloud                                |
+| `prepare_for_deploy` | `terraform_destroy`       | Ручное удаление инфраструктуры                                        |
 | `deploy` | `ansible_deploy`          | Деплой через Ansible + Docker Compose                                 |
 | `deploy` | `health_check`            | Проверка HTTPS `/health` и `/`                                        |
 | `deploy` | `rollback`                | Откат к `previous-<env>` при провале health_check                     |
@@ -130,7 +130,7 @@ flowchart LR
 
 ### Полностью реализовано ✅
 
-- **CI Pipeline:** verify → build → (publish || prepare) → deploy → notify
+- **CI Pipeline:** verify → build → (publish || prepare_for_deploy) → deploy → notify
 - **Terraform IaC:** VPC, subnets (public/private), NAT Gateway, security groups, VM (app/db/monitoring), опциональная DNS-зона
 - **Ansible деплой:** idempotent-роли для app, db, monitoring; авто-определение docker-compose команды
 - **Image Tagging:** commit SHA + `latest-dev/latest-prod` + `previous-dev/previous-prod` (для rollback)
@@ -173,51 +173,43 @@ Production-переменные: `DJANGO_SECRET_KEY`, `DJANGO_ADMIN_URL`, `DJANG
 
 ## Архитектура инфраструктуры
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Yandex Cloud                                │
-│                                                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │   App VM     │  │    DB VM     │  │ Monitoring VM│          │
-│  │  (Django +   │  │ (PostgreSQL) │  │ (Grafana +   │          │
-│  │   Caddy)     │  │              │  │  Prometheus) │          │
-│  │  :443, :80   │  │   :5432      │  │  :3000, :9090│          │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
-│         │                 │                 │                   │
-│         └─────────────────┼─────────────────┘                   │
-│                           │                                     │
-│              ┌────────────┴────────────┐                        │
-│              │     Security Groups     │                        │
-│              │  (app_sg, db_sg, mon_sg)│                        │
-│              └────────────┬────────────┘                        │
-│                           │                                     │
-│         ┌─────────────────┴─────────────────┐                   │
-│         │       VPC Network (<env>)         │                   │
-│         │  ┌──────────┐  ┌──────────┐      │                   │
-│         │  │  public  │  │ private  │      │                   │
-│         │  │  subnet  │  │  subnet  │      │                   │
-│         │  │          │  │          │      │                   │
-│         │  │ App VM   │  │  DB VM   │      │                   │
-│         │  │ Mon VM   │  │          │      │                   │
-│         │  └──────────┘  └──────────┘      │                   │
-│         └─────────────────┬─────────────────┘                   │
-│                           │                                     │
-│                    ┌──────┴──────┐                              │
-│                    │ NAT Gateway │                              │
-│                    └─────────────┘                              │
-└─────────────────────────────────────────────────────────────────┘
-                            ▲
-                            │ HTTPS
-                            │
-                    ┌───────┴───────┐
-                    │   GitLab CI   │
-                    │   Pipeline    │
-                    │               │
-                    │ verify→       │
-                    │ build→(publish│
-                    │ ||prepare)→   │
-                    │ deploy→notify │
-                    └───────────────┘
+```mermaid
+flowchart TB
+
+subgraph YC["Yandex Cloud"]
+
+subgraph VPC["VPC Network (<env>)"]
+
+subgraph PUBLIC["Public Subnet"]
+APP["App VM<br/>(Django + Caddy)<br/>:443 :80"]
+MON["Monitoring VM<br/>(Grafana + Prometheus)<br/>:3000 :9090"]
+end
+
+subgraph PRIVATE["Private Subnet"]
+DB["DB VM<br/>(PostgreSQL)<br/>:5432"]
+end
+
+end
+
+SG["Security Groups<br/>(app_sg, db_sg, mon_sg)"]
+
+APP --- SG
+DB --- SG
+MON --- SG
+
+NAT["NAT Gateway"]
+
+VPC --- NAT
+
+end
+
+CI["GitLab CI Pipeline"]
+
+CI -->|HTTPS deploy| APP
+
+CI -. verify .-> CI2["build"]
+CI2 -. publish & prepare_for_deploy .-> CI3["deploy"]
+CI3 -.-> CI4["notify"]
 ```
 
 ## Конфигурация

@@ -2,7 +2,7 @@ stages:
   - verify
   - security
   - build
-  - prepare
+  - prepare_for_deploy
   - deploy
   - notify
 
@@ -255,7 +255,7 @@ publish_latest:
 ################################################################# BUILD -> INFRA #################################################################
 
 checkov:
-  stage: prepare
+  stage: prepare_for_deploy
   image:
     name: bridgecrew/checkov:latest
     entrypoint: [""]
@@ -268,7 +268,7 @@ checkov:
 
 # Create infra with terraform apply and prepare inventory from outputs
 terraform_apply:
-  stage: prepare
+  stage: prepare_for_deploy
   image:
     name: hashicorp/terraform:1.6
     entrypoint: [""]
@@ -390,7 +390,7 @@ terraform_apply:
 
 # Manually destroy terraform resources when needed
 terraform_destroy:
-  stage: prepare
+  stage: prepare_for_deploy
   image:
     name: hashicorp/terraform:1.6
     entrypoint: [""]
