@@ -248,7 +248,7 @@ run_pytest_on_build:
       -e DATABASE_URL="postgres://${POSTGRES_USER}@postgres-smoke:5432/${POSTGRES_DB}"
       -e DJANGO_SECRET_KEY="ci-smoke-secret-key"
       -e DJANGO_ADMIN_URL="admin/"
-      -e DJANGO_ALLOWED_HOSTS="app-smoke,localhost,127.0.0.1"
+      -e DJANGO_ALLOWED_HOSTS="app-smoke,localhost,127.0.0.1,docker"
       -e DJANGO_SECURE_SSL_REDIRECT="False"
       "$IMAGE_TAG"
     - APP_BASE_URL="http://docker:18080" pytest -q -c /dev/null tests/smoke/container_image_smoke.py
