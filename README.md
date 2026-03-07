@@ -64,18 +64,20 @@ uv run python manage.py runserver
 </details>
 
 ## Архитектура инфраструктуры
-- В качестве инфраструктурного слоя использован Yandex Cloud. Все ресурсы организации _organization-yndx-kuzkoalexey_ размещены в облаке _cloud-yndx-kuzkoalexey_.
-- Задействованы (реализованы) ресурсы: [Managed Service for Gitlab](https://yandex.cloud/en/services/managed-gitlab), Cloud DNS, IAM, Compute Cloud, Object Storage, Virtual Private Cloud
+В качестве инфраструктурного слоя использован Yandex Cloud.
 ### Верхнеуровневая схема инфраструктуры развернутого проекта
+Все ресурсы организации _organization-yndx-kuzkoalexey_ размещены в облаке _cloud-yndx-kuzkoalexey_.
+<details>
+<summary>Реализованные ресурсы: Managed Service for Gitlab, Cloud DNS, IAM, Compute Cloud, Object Storage, Virtual Private Cloud</summary>
+
 ```mermaid
 flowchart TB
-
 subgraph YC["Yandex Cloud"]
-
 subgraph GITLAB["Managed Service for GitLab"]
-GL["GitLab CI/CD"]
-REG["GitLab Container Registry"]
-GL --> REG
+G1["GitLab CI/CD Instance"]
+G2["GitLab Container Registry"]
+G3["Gitlab Runners"]
+G1 --> G2
 end
 
 subgraph VPC["VPC Network (<env>)"]
@@ -101,12 +103,13 @@ NAT["NAT Gateway"]
 
 VPC --- NAT
 
-GL -->|Terraform apply/destroy| VPC
-GL -->|Ansible deploy + health check| APP
-APP -->|image pull| REG
+G1 -->|Terraform apply/destroy| VPC
+G1 -->|Ansible deploy + health check| APP
+APP -->|image pull| G2
 
 end
 ```
+</details>
 
 ## Архитектура CI/CD
 
