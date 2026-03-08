@@ -728,8 +728,12 @@ notify_tg_success:
   stage: notify
   image: curlimages/curl:latest
   allow_failure: true
+  when: on_success
   needs:
     - job: health_check
+    - job: terraform_apply
+      artifacts: true
+      optional: true
   script:
     - |
       if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
@@ -760,6 +764,11 @@ notify_tg_failure:
   stage: notify
   image: curlimages/curl:latest
   allow_failure: true
+  when: on_failure
+  needs:
+    - job: terraform_apply
+      artifacts: true
+      optional: true
   script:
     - |
       if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
@@ -809,6 +818,10 @@ notify_tg_failure:
         FAILED_JOB_NAME="unknown"
       fi
     - |
+      MONITORING_ENDPOINT="unknown"
+      if [ -n "${MONITORING_PUBLIC_IP:-}" ]; then
+        MONITORING_ENDPOINT="http://${MONITORING_PUBLIC_IP}:3000"
+      fi
       MESSAGE="$(printf '%s\n' \
         '[PIPELINE][FAILED]' \
         "env: ${DEPLOY_ENV}" \
@@ -818,7 +831,9 @@ notify_tg_failure:
         "pipeline: ${CI_PIPELINE_URL}" \
         "failed_job: ${FAILED_JOB_NAME}" \
         "rollback_status: ${ROLLBACK_STATUS}" \
-        "rollback_job_status: ${ROLLBACK_JOB_STATUS}")"
+        "rollback_job_status: ${ROLLBACK_JOB_STATUS}" \
+        "${APP_DOMAIN:+app: https://${APP_DOMAIN}}" \
+        "monitoring: ${MONITORING_ENDPOINT}")"
       curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
         --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
         --data-urlencode "text=${MESSAGE}" \
