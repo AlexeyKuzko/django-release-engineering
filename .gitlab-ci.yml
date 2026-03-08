@@ -59,6 +59,30 @@ variables:
       DEPLOY_ENV: "dev"
   - when: never
 
+.notify_success_rules: &notify_success_rules
+  - if: '$CI_COMMIT_BRANCH == "main"'
+    variables:
+      DEPLOY_ENV: "prod"
+  - if: '$CI_COMMIT_BRANCH =~ /^(dev|develop)$/'
+    variables:
+      DEPLOY_ENV: "dev"
+  - when: on_success
+    variables:
+      DEPLOY_ENV: "n/a"
+
+.notify_failure_rules: &notify_failure_rules
+  - if: '$CI_COMMIT_BRANCH == "main"'
+    when: on_failure
+    variables:
+      DEPLOY_ENV: "prod"
+  - if: '$CI_COMMIT_BRANCH =~ /^(dev|develop)$/'
+    when: on_failure
+    variables:
+      DEPLOY_ENV: "dev"
+  - when: on_failure
+    variables:
+      DEPLOY_ENV: "n/a"
+
 # Run linters: pre-commit-hooks, django-upgrade, ruff, djLint
 run_linters:
   stage: verify
@@ -728,12 +752,6 @@ notify_tg_success:
   stage: notify
   image: curlimages/curl:latest
   allow_failure: true
-  when: on_success
-  needs:
-    - job: health_check
-    - job: terraform_apply
-      artifacts: true
-      optional: true
   script:
     - |
       if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
@@ -758,17 +776,12 @@ notify_tg_success:
         --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
         --data-urlencode "text=${MESSAGE}" \
         --data-urlencode "disable_web_page_preview=true"
-  rules: *deploy_env_rules
+  rules: *notify_success_rules
 
 notify_tg_failure:
   stage: notify
   image: curlimages/curl:latest
   allow_failure: true
-  when: on_failure
-  needs:
-    - job: terraform_apply
-      artifacts: true
-      optional: true
   script:
     - |
       if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
@@ -838,4 +851,4 @@ notify_tg_failure:
         --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
         --data-urlencode "text=${MESSAGE}" \
         --data-urlencode "disable_web_page_preview=true"
-  rules: *deploy_env_failure_rules
+  rules: *notify_failure_rules

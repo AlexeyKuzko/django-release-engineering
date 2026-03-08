@@ -248,8 +248,8 @@ flowchart LR
 - В `dev`/`develop` `terraform_apply` доступен как manual job
 - `terraform_destroy` остается manual job
 - После успешного `terraform_apply` автоматически запускаются jobs этапа `deploy`
-- `notify_tg_success` отправляется после успешного `health_check` (для `main` и `dev`/`develop`)
-- `notify_tg_failure` отправляется на любой сбой (`on_failure`) в `main` и `dev`/`develop`
+- `notify_tg_success` отправляется по `on_success`, когда в pipeline не осталось pending/failed jobs
+- `notify_tg_failure` отправляется по `on_failure` на fail любой джобы в pipeline
 - `rollback` и `notify_tg_failure` запускаются при ошибке
 </details>
 
