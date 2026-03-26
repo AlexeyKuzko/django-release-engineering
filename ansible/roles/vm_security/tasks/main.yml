@@ -39,28 +39,6 @@
     line: 'PubkeyAuthentication yes'
   notify: restart ssh
 
-
-############################
-# FIREWALL (UFW)
-############################
-
-- name: Install ufw
-  apt:
-    name: ufw
-    state: present
-    update_cache: true
-
-- name: Set default deny incoming
-  ufw:
-    direction: incoming
-    policy: deny
-
-- name: Set default allow outgoing
-  ufw:
-    direction: outgoing
-    policy: allow
-
-
 # ---- APP ----
 
 - name: Allow SSH on app
