@@ -518,6 +518,7 @@ ansible_deploy:
     - job: terraform_apply
       artifacts: true
     - job: publish_latest
+    - job: vm_security
   before_script:
     - apt-get update
     - apt-get install -y openssh-client
