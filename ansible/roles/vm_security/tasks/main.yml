@@ -169,4 +169,3 @@
     state: started
     enabled: true
   when: "'app' in group_names or 'monitoring' in group_names"
-  
