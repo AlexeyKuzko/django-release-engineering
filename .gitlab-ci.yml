@@ -3,6 +3,7 @@ stages:
   - security
   - build
   - prepare
+  - vm_security
   - deploy
   - notify
 
@@ -465,7 +466,46 @@ terraform_destroy:
     name: $DEPLOY_ENV
   rules: *deploy_env_manual_rules
 
-################################################################# INFRA -> DEPLOY #################################################################
+################################################################# PREPARE -> VM_SECURITY #################################################################
+
+vm_security:
+  stage: vm_security
+  image: python:3.12-slim
+  variables:
+    ANSIBLE_CONFIG: ansible/ansible.cfg
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+  needs:
+    - job: terraform_apply
+      artifacts: true
+  before_script:
+    - apt-get update
+    - apt-get install -y openssh-client
+    - pip install ansible
+    - |
+      if [ -z "$SSH_PRIVATE_KEY" ]; then
+        echo "SSH_PRIVATE_KEY is not set"
+        exit 1
+      fi
+
+      mkdir -p ~/.ssh
+      chmod 700 ~/.ssh
+
+      if [ -f "$SSH_PRIVATE_KEY" ]; then
+        cp "$SSH_PRIVATE_KEY" ~/.ssh/id_rsa
+      else
+        if printf '%s' "$SSH_PRIVATE_KEY" | grep -q "BEGIN.*PRIVATE KEY"; then
+          printf '%s' "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+        else
+          printf '%s' "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_rsa
+        fi
+      fi
+
+      chmod 600 ~/.ssh/id_rsa
+  script:
+    - ansible-playbook -i ansible/inventory/hosts.generated.ini ansible/vm_security.yml --extra-vars "app_subnet_cidr=${APP_SUBNET_CIDR:-10.10.1.0/24}"
+  rules: *deploy_env_rules
+
+################################################################# VM_SECURITY -> DEPLOY #################################################################
 
 # Deploy app, database and monitoring via Ansible
 ansible_deploy:

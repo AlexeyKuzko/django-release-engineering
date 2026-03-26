@@ -1,0 +1,171 @@
+---
+
+############################
+# SSH HARDENING
+############################
+
+- name: Disable SSH password authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+  notify: restart ssh
+
+- name: Disable challenge response auth
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?ChallengeResponseAuthentication'
+    line: 'ChallengeResponseAuthentication no'
+  notify: restart ssh
+
+- name: Disable keyboard interactive auth
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?KbdInteractiveAuthentication'
+    line: 'KbdInteractiveAuthentication no'
+  notify: restart ssh
+
+- name: Disable root login
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin no'
+  notify: restart ssh
+
+- name: Ensure public key auth enabled
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PubkeyAuthentication'
+    line: 'PubkeyAuthentication yes'
+  notify: restart ssh
+
+
+############################
+# FIREWALL (UFW)
+############################
+
+- name: Install ufw
+  apt:
+    name: ufw
+    state: present
+    update_cache: true
+
+- name: Set default deny incoming
+  ufw:
+    direction: incoming
+    policy: deny
+
+- name: Set default allow outgoing
+  ufw:
+    direction: outgoing
+    policy: allow
+
+
+# ---- APP ----
+
+- name: Allow SSH on app
+  ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+  when: "'app' in group_names"
+
+- name: Allow HTTP on app
+  ufw:
+    rule: allow
+    port: '80'
+    proto: tcp
+  when: "'app' in group_names"
+
+- name: Allow HTTPS on app
+  ufw:
+    rule: allow
+    port: '443'
+    proto: tcp
+  when: "'app' in group_names"
+
+
+# ---- DB ----
+
+- name: Allow SSH on db
+  ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+  when: "'db' in group_names"
+
+- name: Allow PostgreSQL only from app subnet
+  ufw:
+    rule: allow
+    port: '5432'
+    proto: tcp
+    src: "{{ app_subnet_cidr | default('10.10.1.0/24') }}"
+  when: "'db' in group_names"
+
+
+# ---- MONITORING ----
+
+- name: Allow SSH on monitoring
+  ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+  when: "'monitoring' in group_names"
+
+- name: Allow Grafana
+  ufw:
+    rule: allow
+    port: '3000'
+    proto: tcp
+  when: "'monitoring' in group_names"
+
+- name: Allow Prometheus
+  ufw:
+    rule: allow
+    port: '9090'
+    proto: tcp
+  when: "'monitoring' in group_names"
+
+
+- name: Enable UFW
+  ufw:
+    state: enabled
+
+
+############################
+# AUTO SECURITY UPDATES
+############################
+
+- name: Install unattended upgrades
+  apt:
+    name:
+      - unattended-upgrades
+      - apt-listchanges
+    state: present
+    update_cache: true
+
+- name: Enable unattended upgrades
+  copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+
+############################
+# FAIL2BAN (ONLY PUBLIC HOSTS)
+############################
+
+- name: Install fail2ban
+  apt:
+    name: fail2ban
+    state: present
+    update_cache: true
+  when: "'app' in group_names or 'monitoring' in group_names"
+
+- name: Enable and start fail2ban
+  service:
+    name: fail2ban
+    state: started
+    enabled: true
+  when: "'app' in group_names or 'monitoring' in group_names"
