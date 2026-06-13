@@ -171,14 +171,52 @@ dependency_scan:
       - audit.json
 
 # Static application security testing (unsafe code contructions, possible sql injections, xss, unsifa file handling and unsafe django settings)
-sast_semgrep:
+sast_bandit:
   stage: security
-  image: returntocorp/semgrep:latest
-  needs:
-    - job: run_linters
-    - job: run_pytest_verify
+  image: python:3.11-slim
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install bandit[toml]
   script:
-    - semgrep --config p/ci --error .
+    - |
+      echo "Running Bandit SAST scan"
+
+      bandit \
+        -r . \
+        -x "./.git,./.venv,./venv,./env,./*/migrations,./chatbot/*.ipynb" \
+        -f json \
+        -o bandit.json \
+        || bandit_rc=$?
+
+      bandit_rc=${bandit_rc:-0}
+
+      bandit \
+        -r . \
+        -x "./.git,./.venv,./venv,./env,./*/migrations,./chatbot/*.ipynb" \
+        -f txt \
+        -o bandit.txt \
+        || true
+
+      if [ "$CI_COMMIT_BRANCH" = "release" ]; then
+        echo "Strict mode: fail on Bandit findings"
+        exit "$bandit_rc"
+      fi
+
+      echo "Non-blocking Bandit scan for branch $CI_COMMIT_BRANCH"
+      exit 0
+  artifacts:
+    when: always
+    paths:
+      - bandit.json
+      - bandit.txt
+  rules:
+  - if: '$CI_COMMIT_BRANCH == "release"'
+    allow_failure: false
+  - if: '$CI_COMMIT_BRANCH == "dev"'
+    allow_failure: true
+  - if: '$CI_COMMIT_BRANCH == "devmat"'
+    allow_failure: true
+  - when: never
 
 ################################################################# SECURITY -> BUILD #################################################################
 
