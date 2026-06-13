@@ -192,7 +192,7 @@ build_image:
   needs:
     - job: secret_scan
     - job: dependency_scan
-    - job: sast_semgrep
+    - job: sast_bandit
   script:
     - mkdir -p /kaniko/.docker
     - |

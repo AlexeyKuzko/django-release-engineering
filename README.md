@@ -151,7 +151,7 @@ flowchart LR
     subgraph Stage_Security ["security"]
         S1[secret_scan]
         S2[dependency_scan]
-        S3[sast_semgrep]
+        S3[sast_bandit]
     end
 
     subgraph Stage_Build ["build"]
@@ -224,7 +224,7 @@ flowchart LR
 | `verify` | `run_pytest_verify`              | набор базовых проверок с pytest в CI-окружении (с PostgreSQL service)                   |
 | `security` | `secret_scan`             | Поиск секретов в репозитории (`gitleaks`)                                               |
 | `security` | `dependency_scan`         | Аудит Python-зависимостей (`pip-audit`)                                                 |
-| `security` | `sast_semgrep`            | SAST-проверка исходного кода (`semgrep`)                                                |
+| `security` | `sast_bandit`            | SAST-проверка исходного кода (`bandit`)                                                |
 | `build` | `build_image`             | Kaniko: сборка и push immutable-образа с тегом `$CI_COMMIT_SHA`                         |
 | `build` | `trivy_scan`              | Сканирование собранного образа (`HIGH`, `CRITICAL`)                                     |
 | `test` | `run_pytest_on_build` | Smoke-тест собранного образа: запуск `postgres` + app-контейнера и запуск pytest-тестов |
