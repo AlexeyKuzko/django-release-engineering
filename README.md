@@ -1,355 +1,176 @@
-# Deployment of Educational Django Application
-Проект содержит автоматизированный GitLab CI/CD pipeline для развертывания Django-приложений в Yandex Cloud.
+# Django Release Engineering
 
-## Структура репозитория
+Release-engineering case study for a Django learning-management application: a staged CI/CD design, reproducible Python dependencies, container checks, Terraform and Ansible delivery, health checks, rollback, and monitoring.
+
+## Overview
+
+This repository combines a Django application with the delivery system built around it. GitHub is the canonical source of truth. The retained GitLab CI/CD definition is historical case-study evidence, not an active dependency, and this repository does not claim a hosted demo or live infrastructure.
+
+The application models courses, projects, tasks, students, and enrollment workflows. The engineering focus is the path from a reviewed commit to a tested image and an explicitly enabled deployment.
+
+## Delivery Flow
+
+The pipeline definition in [`.gitlab-ci.yml`](.gitlab-ci.yml) separates verification, security, build, runtime testing, image promotion, infrastructure preparation, deployment, and notification:
+
+```text
+verify -> security -> build -> test -> publish -> prepare_for_deploy -> deploy -> notify
 ```
-├── .gitlab-ci.yml          # GitLab CI/CD pipeline
-├── Dockerfile              # Dockerfile для сборки образа приложения
-├── ansible/                # Ansible-роли и плейбуки
-├── config/                 # Django settings
-├── django_educational_demo_application/  # Django app
-├── infra/                  # Terraform-модули для Yandex Cloud
-└── tests/                  # Тесты
-```
 
-## О приложении
-<details>
-<summary>Для демонстрации работы пайплайна было разработано MVP веб-приложения "Django Educational Demo Application".</summary>
+- `run_linters` and `run_pytest_verify` gate the security stage.
+- Gitleaks scans full Git history and is blocking.
+- Bandit, pip-audit, Trivy, and Checkov surface unresolved findings as advisory jobs.
+- Kaniko builds one immutable image per commit; a Docker-in-Docker job tests the built image with PostgreSQL.
+- Image promotion, Terraform, Ansible, health checks, DAST, rollback, and deployment notifications are separated into explicit jobs.
+- `DEPLOY_ENABLED` defaults to `false`. Deployment rules require the exact value `true`, a supported branch, and a non-documentation change.
 
-Это Learning Management System (LMS) для управления образовательными проектами и курсами.
-Позволяет преподавателям создавать и управлять курсами, отслеживать прогресс работы над проектами, а студентам выполнять и сдавать задания.
-### Основная функциональность
-- **Курсы и зачисления** — создание учебных курсов, управление списками студентов
-- **Проекты** — создание проектов со статусами (draft → in_progress → review → completed), ссылками на репозитории и развёрнутые приложения
-- **Задачи** — разбиение проектов на подзадачи
-- **Оценивание** — выставление оценок преподавателем, отслеживание средней оценки студента
-- **Статистика** — аналитика по курсам (количество студентов, проектов, средняя оценка)
-- **Аутентификация** — регистрация и вход через социальные сети (django-allauth)
+## Architecture
 
-### Локальный запуск
+The delivery design has four boundaries:
+
+1. **Application:** Django, PostgreSQL, Redis integration, authentication, course/project workflows, and `/health`.
+2. **Artifact:** a Python 3.13 container built from the locked runtime dependency set in [`uv.lock`](uv.lock).
+3. **Infrastructure:** Terraform models Yandex Cloud networking, compute, security groups, DNS options, and remote state; Ansible configures application, database, and monitoring hosts.
+4. **Operations:** Caddy fronts the application; Prometheus and Grafana provide the monitoring layer; health checks and a single previous image tag support rollback.
+
+The database is placed on a private subnet. The application and monitoring hosts receive the connectivity needed by the delivery design, while security-group rules remain explicit in [`infra/`](infra/).
+
+## Evidence Map
+
+| Capability | Primary evidence | What to inspect |
+| --- | --- | --- |
+| CI/CD orchestration | [`.gitlab-ci.yml`](.gitlab-ci.yml) | stages, `needs`, advisory versus blocking checks, deploy rules |
+| Reproducible Python environment | [`pyproject.toml`](pyproject.toml), [`uv.lock`](uv.lock) | exact Python and package pins, dev tooling |
+| Container build and runtime test | [`Dockerfile`](Dockerfile), [`tests/smoke/`](tests/smoke/) | locked production export, image-level health and homepage checks |
+| Django behavior | [`django_educational_demo_application/`](django_educational_demo_application/), [`tests/`](tests/) | domain models, views, user flows, health endpoint |
+| Infrastructure as code | [`infra/`](infra/) | network, compute, DNS, security, variables, outputs |
+| Configuration management | [`ansible/`](ansible/) | common, app, database, and monitoring roles |
+| Rollback and health | [`.gitlab-ci.yml`](.gitlab-ci.yml) | previous-image promotion, health gates, rollback job |
+| Provenance | [`NOTICE`](NOTICE), [`CONTRIBUTORS.txt`](CONTRIBUTORS.txt) | template attribution and contributor acknowledgement |
+
+## Trade-offs
+
+- The GitLab pipeline is retained because it is material engineering evidence; GitHub remains canonical, so no GitLab availability or parity is assumed.
+- Security tools remain visible but advisory where their baselines are unresolved. This preserves signal without presenting known debt as a passing gate.
+- Terraform and Ansible demonstrate a complete cloud delivery path, but the Yandex Cloud implementation is less portable than a provider-neutral example.
+- Rollback uses one `previous-<environment>` image tag. It is simple to operate but provides only one-generation recovery and cannot help on a first deployment.
+- Deployment automation is deliberately inert by default. An operator must opt in with `DEPLOY_ENABLED=true`, and documentation-only changes do not satisfy deploy rules.
+
+## Testing and Security
+
+The test suite covers users, forms, URLs, views, project/course behavior, production dotenv assembly, the homepage, and the health endpoint. Image smoke tests exercise the built container against PostgreSQL. A fully provisioned environment is expected to collect 49 Django tests; that is a validation target, not a claim that every checkout has executed them.
+
+Security controls represented in the pipeline include:
+
+- blocking full-history Gitleaks scanning;
+- advisory Bandit source analysis and pip-audit dependency analysis;
+- advisory Trivy image scanning and Checkov Terraform analysis;
+- locked dependency synchronization and a locked, production-only Docker export;
+- an ignored Git history, environment directory, virtual environments, Terraform, and Ansible content in the Docker build context;
+- explicit deployment opt-in and change-based deployment rules.
+
+Three historical assigned values were removed from all reachable history during repository preparation and must be treated as compromised. This repository does not claim that external copies, credentials, or resources were rotated or decommissioned.
+
+## Rollback
+
+Before promoting a new image, the pipeline records the current `latest-<environment>` image as `previous-<environment>`. If the post-deployment health check fails, the rollback job redeploys that previous tag through the Ansible application role.
+
+Rollback is conditional on a previous image existing, covers one generation, and has not been represented here as proof of a live production recovery. Infrastructure destruction remains a separate manual operation and is not part of routine validation.
+
+## Verified Results
+
+The local hardening checkpoint recorded the following non-remote results:
+
+- the rewritten repository preserves five distinct branch histories and zero tags;
+- all 187 reachable commits retained author, committer, timestamp, message, and parent relationships while affected tree and commit IDs changed;
+- the three approved historical values have zero occurrences in reachable blobs and commit diffs;
+- Gitleaks 8.30.1 reported zero findings across rewritten history;
+- `git fsck --full --strict` and `uv lock --check` completed successfully;
+- configuration acceptance checks cover CI dependencies, deploy gating, Docker hardening, documentation structure, and contributor attribution.
+
+Application execution, dependency auditing, Terraform validation, Ansible linting, and image builds require the tools and services listed below. A result is not implied when those prerequisites are absent.
+
+## Run and Validate
+
+Create the locked environment and a local PostgreSQL database:
+
 ```bash
-uv venv
 uv sync --locked
-export DATABASE_URL=postgres://<user>:<pass>@<host>:5432/<db>
+createdb django_educational_demo_application
+export DATABASE_URL=postgresql:///django_educational_demo_application
 uv run python manage.py migrate
+```
+
+Run the application and its principal checks:
+
+```bash
+uv run python manage.py check
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run djlint django_educational_demo_application/templates --check
 uv run python manage.py runserver
 ```
-</details>
 
-## О пайплайне
-<details>
-<summary>Ключевой фокус проекта - разработка CI/CD pipeline, обеспечивающего полноценный DevOps-процесс.</summary>
+Validate generated dependency and infrastructure inputs without deploying:
 
-### Основная функциональность
-- **Автоматическая верификация кода**: security-проверки, сборка и публикация Docker-образов в GitLab Container Registry;
-- **Управление инфраструктурой** на основе branch-based правил через Terraform (`apply` / `destroy` для VPC, VM, security groups);
-- **Конфигурацию серверов** и деплой через Ansible веб-приложения, базы данных и мониторинга (Prometheus+Grafana);
-- **Health-check с автоматическим rollback** приложения для обеспечения 100% удачного развертывания в продакшен;
-- **Уведомления в Telegram**[-канал](https://t.me/dedapp_notifications) о статусе пайплайна для увеличения прозрачности процесса и повышения информативности нотификация GitLab.
-</details>
-
-## Технологии
-<details>
-<summary>Проект реализован с использованием следующих инструментов:</summary>
-
-| Категория | Инструменты |
-|---|---|
-| Application | Django 5.2, Gunicorn, PostgreSQL, Redis |
-| CI/CD | GitLab CI, GitLab Container Registry, Kaniko |
-| Containerization | Docker, Docker Compose |
-| IaC | Terraform (Yandex Cloud provider) |
-| Configuration | Ansible |
-| Testing | pytest, pytest-django, pre-commit (ruff, djLint) |
-| Monitoring | Grafana, Prometheus |
-</details>
-
-## Архитектура инфраструктуры
-В качестве инфраструктурного слоя использован Yandex Cloud.
-### Верхнеуровневая схема инфраструктуры
-Все ресурсы организации _organization-yndx-kuzkoalexey_ размещены в облаке _cloud-yndx-kuzkoalexey_.
-<details>
-<summary>Задействованные ресурсы: Managed Service for Gitlab, Cloud DNS, IAM, Compute Cloud, Object Storage, Virtual Private Cloud</summary>
-
-```mermaid
-flowchart TB
-subgraph YC["Yandex Cloud"]
-  subgraph GITLAB["Managed Service for GitLab"]
-    G1["GitLab CI/CD Instance"]
-    G2["GitLab Container Registry"]
-    G1 --> G2
-  end
-
-  subgraph IAM["IAM"]
-    I1["Service Account Key"]
-    I2["Static Access Keys"]
-  end
-
-  subgraph OBJ["Object Storage"]
-    O1["Bucket: diploma-terraform-state"]
-    O2["Object: dev/terraform.tfstate"]
-    O3["Object: prod/terraform.tfstate"]
-    O1 --- O2
-    O1 --- O3
-  end
-
-  subgraph VPC["Virtual Private Cloud"]
-    V1["VPC Network: diploma-&lt;env&gt;-network"]
-    V2["Public Subnet"]
-    V3["Private Subnet"]
-    V4["NAT Gateway"]
-    V5["Private Route Table<br/>(0.0.0.0/0 -&gt; NAT)"]
-    V6["Static Public IP<br/>(App VM)"]
-    V7["Security Groups<br/>(app, db, monitoring)"]
-
-    V1 --- V2
-    V1 --- V3
-    V3 --- V5
-    V5 --- V4
-    V2 --- V6
-    V1 --- V7
-  end
-
-  subgraph CC["Compute Cloud"]
-    C1["App VM<br/>(Django + Caddy)"]
-    C2["DB VM<br/>(PostgreSQL)"]
-    C3["Monitoring VM<br/>(Grafana + Prometheus)"]
-    С4["GitLab Runners"]
-  end
-
-  subgraph DNS["Cloud DNS"]
-    D1["Public DNS Zone<br/>(manage_dns=true)"]
-    D2["A Record<br/>app_domain -&gt; app public IP"]
-    D1 --> D2
-  end
-end
-
-G1 -->|Terraform apply/destroy: network, subnets, route, NAT, SG, IP| VPC
-G1 -->|Terraform apply/destroy: app/db/monitoring VM| CC
-G1 -->|Terraform apply/destroy| DNS
-G1 -->|Terraform state backend| O1
-G1 -->|Use IAM creds| I1
-G1 -->|Use storage access keys| I2
-G1 -->|Ansible deploy + health check| CC
-G1 --> С4
-
-C1 -->|image pull| G2
-CC -->|NICs in public/private subnets| VPC
-D2 -->|resolves to app public IP| C1
-```
-</details>
-
-## Архитектура CI/CD
-
-### Схема пайплайна
-```mermaid
-flowchart LR
-    subgraph Stage_Verify ["verify"]
-        A1[run_linters]
-        A2[run_pytest_verify]
-    end
-
-    subgraph Stage_Security ["security"]
-        S1[secret_scan]
-        S2[dependency_scan]
-        S3[sast_bandit]
-    end
-
-    subgraph Stage_Build ["build"]
-        B1[build_image]
-    end
-
-    subgraph Stage_Test ["test"]
-        T1[trivy_scan]
-        T2[run_pytest_on_build]
-    end
-
-    subgraph Stage_Publish ["publish"]
-        P1[publish_latest]
-    end
-
-    subgraph Stage_Prepare ["prepare_for_deploy"]
-        C1[checkov]
-        C2[terraform_apply<br/>]
-        C3[terraform_destroy<br/>]
-    end
-
-    subgraph Stage_Deploy ["deploy"]
-        D1[ansible_deploy]
-        D2[health_check]
-        D3[rollback]
-        D4[DAST_zap]
-    end
-
-    subgraph Stage_Notify ["notify"]
-        E1[notify_tg_success]
-        E2[notify_tg_failure]
-    end
-
-    Stage_Verify --> Stage_Security
-    S1 --> B1
-    S2 --> B1
-    S3 --> B1
-    B1 --> T1
-    B1 --> T2
-    T1 --> P1
-    T2 --> P1
-    P1 --> C1
-    C1 --> C2
-    C2 -. manual .-> C3
-    C2 --> D1
-    D1 --> D2
-    D2 --> D4
-    D2 -->|success| E1
-    D2 -->|failure| D3
-    D3 --> E2
-
-    style D3 fill:green
-    style E1 fill:green
-    style E2 fill:orange
+```bash
+uv lock --check
+uv export --locked --no-dev --format requirements-txt --output-file /tmp/requirements.txt
+docker build -t django-release-engineering:local .
+terraform -chdir=infra init -backend=false
+terraform -chdir=infra validate
+ansible-lint ansible/
 ```
 
-<details>
-<summary>Для наглядности диаграмма упрощена.</summary>
+Do not run Terraform apply/destroy or Ansible deployment against an account you do not control. Supply deployment credentials only through a protected external secret store; do not commit them.
 
-> - `run_pytest_on_build` проверяет именно собранный образ: поднимает `postgres` + app-контейнер и запускает `pytest` smoke (`tests/smoke/container_image_smoke.py`)
-> - `terraform_apply` для `main` запускается автоматически, для `dev/develop` — вручную
-> - `notify_tg_success` запускается `on_success` - когда не осталось pending/failed jobs (не только после `health_check`)
-> - `notify_tg_failure` запускается на `on_failure` при любой ошибке (не только после `rollback`)
-</details>
+## Prerequisites
 
-### Этапы пайплайна
-| Stage | Job                       | Описание                                                                                |
-|---|---------------------------|-----------------------------------------------------------------------------------------|
-| `verify` | `run_linters`             | pre-commit hooks (ruff, djLint, django-upgrade)                                         |
-| `verify` | `run_pytest_verify`              | набор базовых проверок с pytest в CI-окружении (с PostgreSQL service)                   |
-| `security` | `secret_scan`             | Поиск секретов в репозитории (`gitleaks`)                                               |
-| `security` | `dependency_scan`         | Аудит Python-зависимостей (`pip-audit`)                                                 |
-| `security` | `sast_bandit`            | SAST-проверка исходного кода (`bandit`)                                                |
-| `build` | `build_image`             | Kaniko: сборка и push immutable-образа с тегом `$CI_COMMIT_SHA`                         |
-| `build` | `trivy_scan`              | Сканирование собранного образа (`HIGH`, `CRITICAL`)                                     |
-| `test` | `run_pytest_on_build` | Smoke-тест собранного образа: запуск `postgres` + app-контейнера и запуск pytest-тестов |
-| `publish` | `publish_latest`          | Ретегирование уже собранного образа в `latest-<env>` и `previous-<env>`                 |
-| `prepare_for_deploy` | `checkov`                 | Статический анализ Terraform-конфигурации                                               |
-| `prepare_for_deploy` | `terraform_apply`         | `terraform apply` + подготовка inventory (auto в `main`, manual в `dev/develop`)        |
-| `prepare_for_deploy` | `terraform_destroy`       | Ручной `terraform destroy`                                                              |
-| `deploy` | `ansible_deploy`          | Деплой через Ansible + Docker Compose                                                   |
-| `deploy` | `health_check`            | Проверка HTTPS `/health` и `/`                                                          |
-| `deploy` | `rollback`                | Откат к `previous-<env>` при провале health_check                                       |
-| `deploy` | `DAST_zap`                | DAST baseline-скан после успешного health-check                                         |
-| `notify` | `notify_tg_success` | Уведомляет в Telegram об успешном завершении пайплайна                                  |
-| `notify` | `notify_tg_failure` | Уведомляет в Telegram о провале с указанием конкретной job                              |
+- Python `3.13.x`
+- `uv` `0.11.28` for the documented lock/export workflow
+- PostgreSQL 15-compatible service for Django tests
+- Docker with a running daemon for image validation
+- Terraform 1.6-compatible CLI for infrastructure validation
+- Ansible and `ansible-lint` for configuration validation
+- cloud credentials, SSH material, DNS ownership, and a container registry only for an explicitly authorized deployment
 
-<details>
-<summary>Правила запуска:</summary>
+## Repository Layout
 
-- Автоматически на push запускаются `verify` → `security` → `build` → `test`
-- Для веток `main` (`prod`) и `dev`/`develop` (`dev`) дополнительно запускается `publish_latest`
-- В `main` `terraform_apply` запускается автоматически
-- В `dev`/`develop` `terraform_apply` доступен как manual job
-- `terraform_destroy` остается manual job
-- После успешного `terraform_apply` автоматически запускаются jobs этапа `deploy`
-- `notify_tg_success` отправляется по `on_success`, когда в pipeline не осталось pending/failed jobs
-- `notify_tg_failure` отправляется по `on_failure` на fail любой джобы в pipeline
-- `rollback` и `notify_tg_failure` запускаются при ошибке
-</details>
+```text
+.
+├── config/                                  # Django settings, URLs, WSGI
+├── django_educational_demo_application/     # application code, templates, tests
+├── tests/                                   # health, homepage, dotenv, image smoke tests
+├── infra/                                   # Terraform infrastructure
+├── ansible/                                 # roles, inventory, templates
+├── Dockerfile                               # locked production image build
+├── pyproject.toml                           # project and tool configuration
+├── uv.lock                                  # reproducible dependency resolution
+└── .gitlab-ci.yml                           # historical CI/CD case-study definition
+```
 
-### Реализованная функциональность
+## Limitations
 
+- There is no supported live-demo URL and no claim that cloud resources are currently running.
+- GitLab is not an active dependency or source of truth; the retained pipeline definition was not validated against a live GitLab instance during this hardening pass.
+- Dependency-vulnerability status remains an advisory residual: the preparation environment had neither package-index DNS nor a cached `pip-audit`, so dependencies and `uv.lock` were not changed and no clean audit is claimed.
+- The full Django suite requires both the locked packages and PostgreSQL; environments missing either prerequisite cannot substantiate the 49-test target.
+- Bandit, pip-audit, Trivy, and Checkov remain advisory until their baselines are reviewed and resolved.
+- The infrastructure is provider-specific, requires external credentials, and must not be treated as a turnkey production platform.
+- External rotation or decommissioning of previously exposed values could not be verified from GitHub and is not claimed.
 
-<details>
-<summary>Полностью реализовано ✅</summary>
+## Contribution
 
-- **CI Pipeline:** auto-часть `verify → security → build → test → publish`; в `main` деплойный контур автоматический, в `dev/develop` `terraform_apply`/`terraform_destroy` запускаются вручную; после `terraform_apply` выполняются `deploy → notify`
-- **Terraform IaC:** VPC, subnets (public/private), NAT Gateway, security groups, VM (app/db/monitoring), опциональная DNS-зона
-- **Ansible деплой:** idempotent-роли для app, db, monitoring; авто-определение docker-compose команды
-- **Image Tagging:** commit SHA + `latest-dev/latest-prod` + `previous-dev/previous-prod` (для rollback)
-- **Post-build smoke test:** запуск собранного Docker-образа вместе с PostgreSQL и `pytest`-проверка доступности `/health` и `/`
-- **Health-check:** HTTPS проверка `/health` и главной страницы с fallback на IP
-- **Rollback:** автоматический откат к `previous-<env>` при провале health_check
-- **Terraform destroy:** ручное удаление инфраструктуры
-- **S3 Backend:** состояние Terraform в Yandex Object Storage (`dev/terraform.tfstate`, `prod/terraform.tfstate`)
-- **Изоляция окружений:** отдельные VPC/subnets/NAT для dev и prod
-</details>
+### My Contribution
 
-<details>
-<summary>Ограничения ⚠️</summary>
+This was a team diploma project. Git attribution on `main` shows my authored changes across Terraform, Ansible, the Django application, automated tests, documentation, and most of the GitLab CI/CD pipeline. Matvei Sukhikh contributed security-pipeline changes. This describes commit attribution, not exclusive ownership.
 
-- **Rollback:** хранится только один предыдущий тег (`previous-<env>`); первый деплой откатывать некуда
-- **DNS:** при `MANAGE_DNS=true` требуется делегирование NS на регистраторе для ACME challenge
-- **Health-check:** fallback на HTTP/IP при некоторых HTTPS-сбоях; strict-fail только для DNS-ошибок (`curl rc=6`)
-</details>
+### Acknowledgements
 
-### Build vs Publish
-<details>
-<summary>Шаги `build_image` и `publish_latest` разделены по ответственности</summary>
+Matvei Sukhikh contributed security-pipeline changes. See [`CONTRIBUTORS.txt`](CONTRIBUTORS.txt) for the contributor list. Contributions should be proposed through a focused branch with tests and documentation appropriate to the change; deployment must remain disabled unless an authorized operator explicitly enables it.
 
-- `build_image` (Kaniko) собирает Docker-образ из `Dockerfile` и публикует immutable-тег `$CI_COMMIT_SHA`
-- `publish_latest` работает уже с опубликованным образом в реестре: переносит `latest-<env>` в `previous-<env>` и ставит `latest-<env>` на текущий SHA
+## Provenance and License
 
-Шаги не дублируют друг друга. Первый создаёт артефакт сборки, второй продвигает его как «текущий» для окружения и подготавливает данные для rollback.
-</details>
+The project originated from the cookiecutter-django template. Template provenance and its BSD 3-Clause notice are preserved in [`NOTICE`](NOTICE).
 
-### Тестирование
-<details>
-<summary>Реализовано 10 тест-файлов</summary>
-- `django_educational_demo_application/users/tests/` (5 файлов: admin, forms, models, urls, views)
-- `tests/test_health_endpoint.py`
-- `tests/test_home_page.py`
-- `tests/test_merge_production_dotenvs_in_dotenv.py`
-- `tests/smoke/container_image_smoke.py`
-</details>
-<details>
-<summary>Особенности тестирования</summary>
-
-- Тесты используют PostgreSQL (не совместимы с SQLite из-за sequence в миграциях `contrib/sites`)
-- CI запускает pytest с PostgreSQL service
-- Пост-сборочный `test` stage запускает pytest против запущенного контейнера
-</details>
-
-## Конфигурация
-
-<details>
-<summary>Переменные Terraform</summary>
-
-
-| Переменная | Описание | Пример |
-|---|---|---|
-| `app_domain` | FQDN приложения | `app.example.com` |
-| `manage_dns` | Управлять DNS-зоной через Terraform | `true`/`false` |
-| `dns_zone` | Базовая DNS-зона | `example.com` |
-| `dns_zone_resource_name` | Имя ресурса DNS-зоны | `diploma-zone-dev` |
-| `environment` | Имя окружения | `dev`/`prod` |
-</details>
-
-<details>
-<summary>Переменные GitLab CI/CD</summary>
-
-| Переменная | Описание | Scope |
-|---|---|---|
-| `APP_DOMAIN` | Домен приложения (обязательная) | environment |
-| `MANAGE_DNS` | Управление DNS (`true`/`false`) | environment |
-| `DNS_ZONE` | DNS-зона | environment |
-| `DNS_ZONE_RESOURCE_NAME` | Имя зоны в YC DNS | environment |
-| `DJANGO_SECRET_KEY` | Секрет Django | environment, masked |
-| `DJANGO_ADMIN_URL` | URL админки | environment |
-| `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Параметры БД | environment, masked |
-| `TLS_ACME_EMAIL` | Email для Let's Encrypt | environment |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Уведомления | masked |
-| `YC_SERVICE_ACCOUNT_KEY` | Ключ сервисного аккаунта | masked |
-| `SSH_PUBLIC_KEY`, `SSH_PRIVATE_KEY` | SSH ключи | masked |
-| `YC_STORAGE_ACCESS_KEY`, `YC_STORAGE_SECRET_KEY` | S3 backend | masked |
-
-**Определение окружения в зависимости от Git branch:**
-- `main` → `prod`
-- `dev`/`develop` → `dev`
-</details>
-
-<details>
-<summary>Настройки DNS делегирования</summary>
-
-При `MANAGE_DNS=true` Terraform создаёт публичную DNS-зону и выводит:
-- `dns_zone_id`
-- `dns_zone_name`
-- `dns_delegation_name_servers` (NS-серверы)
-Требуется делегирование NS у регистратора для работы ACME challenge (Let's Encrypt).
-</details>
+Project-specific work is available under the [MIT License](LICENSE). Contributor attribution is recorded in [`CONTRIBUTORS.txt`](CONTRIBUTORS.txt); the contribution statement above describes Git attribution and does not claim exclusive ownership.
