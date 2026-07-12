@@ -31,7 +31,7 @@ resource "yandex_dns_recordset" "app_a" {
     }
     precondition {
       condition     = local.app_domain_in_dns_zone
-      error_message = "app_domain must be equal to dns_zone or be its subdomain when manage_dns=true. Example: app.dedapp.ru for dns_zone=dedapp.ru."
+      error_message = "app_domain must be equal to dns_zone or be its subdomain when manage_dns=true. Example: app.example.com for dns_zone=example.com."
     }
   }
 }

@@ -20,8 +20,8 @@ RUN apt-get update \
 COPY pyproject.toml uv.lock ./
 
 # Генерируем requirements.txt из lock-файла
-RUN pip install --no-cache-dir uv \
-    && uv export --format requirements-txt > requirements.txt \
+RUN pip install --no-cache-dir uv==0.11.28 \
+    && uv export --locked --no-dev --format requirements-txt --output-file requirements.txt \
     && pip install --no-cache-dir -r requirements.txt
 
 # Копируем код проекта

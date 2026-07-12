@@ -1,2 +1,7 @@
+.git
+.envs
+.venv*
+ansible/
 docs/
+infra/
 utility/
